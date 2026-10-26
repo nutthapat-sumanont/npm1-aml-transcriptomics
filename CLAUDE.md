@@ -16,3 +16,12 @@ Compare gene expression between NPM1-mutated and NPM1-wild-type AML using Beat A
 Beat AML 2.0: https://github.com/biodev/beataml2.0_data (CC-BY-4.0).
 Files are stored in Git LFS. Download with https://github.com/biodev/beataml2.0_data/raw/main/<filename> and check that each file is real data, not a small LFS pointer.
 Cite: Bottomly et al., Cancer Cell 2022; Tyner et al., Nature 2018.
+
+## Decisions so far (check against these every session)
+- Cohort (done in Session 1, scripts/02_cohort.R): AML only, initial diagnosis, de novo only, one sample per patient (earliest), NPM1 from the clinical summary consensus call. Excluded APL and KMT2A fusions. Main cohort = 277 patients: 100 NPM1-mutated, 177 wild-type (`main_cohort == TRUE` in results/cohort.csv).
+- KMT2A fusion cases stay in cohort.csv (`group = "KMT2A_r"`) for a later three-group plot of HOXA9 and MEIS1: NPM1-mutated, KMT2A-rearranged, other AML.
+- The 8 wild-type samples with KMT2A-PTD in their notes stay in the main cohort (PTD isn't tested consistently in Beat AML).
+- DESeq2 design to start from: ~ wave + specimen_type + NPM1_status, NPM1 wild-type as the reference level. Adjust only after the Session 2 QC, and ask me first.
+- Positive controls: HOXA9, HOXA10, HOXB cluster, MEIS1, PBX3 should be higher in NPM1-mutated; CD34 lower; VERHAAK_AML_WITH_NPM1_MUTATED_UP enriched. If they aren't, stop and look for a bug before going further.
+- Work on main where possible, or open a pull request into main at the end of each session so the next session starts from the latest work.
+- End every session with a "Deviations" note in LEARNING.md: anything done differently from this list, and why.
