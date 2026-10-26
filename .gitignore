@@ -48,3 +48,6 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# Raw data (re-download with scripts/01_download.R)
+data/
