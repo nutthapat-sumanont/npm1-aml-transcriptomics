@@ -8,3 +8,4 @@
 6,"De novo AML only",317,317,102,215,32.2
 7,"Drop APL (PML-RARA)",301,301,102,199,33.9
 8,"Drop KMT2A fusions (kept in cohort.csv, main_cohort = FALSE)",277,277,100,177,36.1
+9,"Drop RNA-seq QC failures (sex mismatch)",276,276,100,176,36.2

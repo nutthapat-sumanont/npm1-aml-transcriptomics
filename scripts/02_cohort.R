@@ -119,20 +119,33 @@ s8 <- s7 %>%
   filter(!KMT2A_rearranged) %>%
   log_step(8, "Drop KMT2A fusions (kept in cohort.csv, main_cohort = FALSE)", .)
 
+# 9. Drop samples that failed RNA-seq QC (scripts/03_qc.R, Session 2).
+#    BA2294R is recorded female but expresses RPS4Y1 and no XIST, so it looks
+#    male. A sex mismatch can mean a sample swap, which would make its NPM1 call
+#    unreliable too. Approved before Session 3. It stays in cohort.csv with
+#    main_cohort = FALSE and group = "QC_excluded".
+qc_fail <- c(BA2294R = "sex mismatch (recorded female, expression male)")
+s9 <- s8 %>%
+  filter(!dbgap_rnaseq_sample %in% names(qc_fail)) %>%
+  log_step(9, "Drop RNA-seq QC failures (sex mismatch)", .)
+
 flow <- bind_rows(flow) %>%
   mutate(npm1_mut_pct = round(100 * npm1_positive / (npm1_positive + npm1_negative), 1))
 cat("\n-- Cohort flow --\n")
 print(flow, row.names = FALSE)
 
-# cohort.csv holds the main cohort plus the KMT2A-fusion cases from step 7.
+# cohort.csv holds the main cohort plus the KMT2A-fusion cases from step 7
+# and the QC failures from step 9.
 # main_cohort marks the 2-group NPM1 comparison; group is for plotting.
 cohort <- s7 %>%
   transmute(
     dbgap_subject_id, dbgap_rnaseq_sample, dbgap_dnaseq_sample,
     NPM1 = factor(ifelse(NPM1 == "positive", "mut", "wt"), levels = c("wt", "mut")),
-    main_cohort = !KMT2A_rearranged,
-    group = ifelse(KMT2A_rearranged, "KMT2A_r",
-                   ifelse(NPM1 == "mut", "NPM1_mut", "NPM1_wt")),
+    qc_exclusion = unname(qc_fail[dbgap_rnaseq_sample]),
+    main_cohort = !KMT2A_rearranged & is.na(qc_exclusion),
+    group = ifelse(!is.na(qc_exclusion), "QC_excluded",
+                   ifelse(KMT2A_rearranged, "KMT2A_r",
+                          ifelse(NPM1 == "mut", "NPM1_mut", "NPM1_wt"))),
     FLT3_ITD = `FLT3-ITD`,
     specimenType, cohort, centerID, consensus_sex, ageAtDiagnosis,
     isDenovo, specificDxAtAcquisition, consensusAMLFusions,
