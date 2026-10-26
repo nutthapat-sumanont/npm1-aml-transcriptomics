@@ -16,5 +16,23 @@
 - Git LFS: big files on GitHub are replaced by small pointer files. Download the wrong way and you get the pointer, which still "downloads fine". Always check file size.
 - The clinical `NPM1` column is the clinical lab call (usually PCR). It agrees with the exome calls in 862 of 903 samples; 39 are positive clinically but not in the exome data, which is expected because the NPM1 4-base insertion is hard for exome variant callers.
 
-**Open questions**
-- Pending: approval of the cohort filtering plan (see session notes below once done).
+**Cohort (approved plan, `scripts/02_cohort.R` part 2)**
+
+| Step | Filter | Samples | Patients | NPM1 mut / wt |
+|---|---|---|---|---|
+| 0 | All samples | 942 | 805 | 240 / 698 |
+| 1 | RNA-seq in counts matrix | 671 | 613 | 174 / 493 |
+| 2 | AML at sampling | 654 | 596 | 174 / 476 |
+| 3 | Initial diagnosis | 445 | 443 | 125 / 320 |
+| 4 | NPM1 known | 445 | 443 | 125 / 320 |
+| 5 | One sample per patient | 443 | 443 | 125 / 318 |
+
+- Final cohort: 443 patients, 125 NPM1-mutated and 318 wild-type. Saved in `results/cohort.csv`, with the step counts in `results/cohort_flow.csv`.
+- Duplicate rule: keep the earliest sample, and bone marrow first if two are tied. Patient 2280 kept a bone marrow sample. Patient 2403 kept a leukapheresis sample, because it was collected a day before their bone marrow sample.
+- Specimen type is unbalanced: bone marrow is 66% of mutated samples but 59% of wild-type. That's a reason to put specimen type in the DESeq2 design.
+
+**Open questions for the DESeq2 step**
+- De novo only, or all AML? The wild-type group is 32% secondary or therapy-related AML, but the mutated group is only 18%.
+- KMT2A-rearranged cases: 31 are wild-type and 3 are NPM1-mutated, which is unusual and worth checking. They're menin-dependent, so leaving them in the wild-type group weakens the signal we care about.
+- APL: 18 cases, all wild-type. Exclude them or keep them?
+- Design formula: `~ specimenType + NPM1` at minimum. Should sex, age or sequencing cohort (wave) be added?

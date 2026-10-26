@@ -1,0 +1,7 @@
+"step","description","samples","patients","npm1_positive","npm1_negative"
+0,"All samples in clinical summary",942,805,240,698
+1,"Has RNA-seq and is in counts matrix",671,613,174,493
+2,"AML at specimen acquisition",654,596,174,476
+3,"Initial diagnosis sample",445,443,125,320
+4,"NPM1 status known",445,443,125,320
+5,"One sample per patient (earliest, bone marrow first)",443,443,125,318
