@@ -14,11 +14,16 @@ Scripts run from the repo root, in order:
 | `scripts/04_deseq2.R` | DESeq2, `~ wave + specimen_type + sex + NPM1_status`, plus a FLT3-ITD sensitivity model |
 | `scripts/05_enrichment.R` | GSEA (Hallmark, GO BP, Verhaak NPM1 controls), HOXA9/MEIS1 three-group plot, NEK10/FTO/USP44 check |
 | `scripts/06_subgroup.R` | What the NEK10/FTO/USP44-high group within NPM1-mutated AML corresponds to |
+| `scripts/07_deseq2_subgroups.R` | Sensitivity DESeq2: each NPM1 subgroup vs wild-type (extra model; the main model is unchanged) |
+
+`scripts/run_all.R` runs all of them in order.
 
 ## Main findings so far
 
 - The positive controls hold: HOXA/HOXB, MEIS1 and PBX3 up, CD34 down, and the Verhaak NPM1 gene sets strongly enriched (NES +3.3 and -3.8).
 - NPM1-mutated and KMT2A-rearranged AML reach the same high HOXA9 and MEIS1 levels, the shared menin dependency behind menin inhibitors.
+
+![HOXA9 and MEIS1 in NPM1-mutated, KMT2A-rearranged and other AML](figures/05_three_group_hoxa9_meis1.png)
 
 ### A known subgroup inside NPM1-mutated AML
 
@@ -30,6 +35,8 @@ About 40% of NPM1-mutated samples (39 of 100) have high NEK10, FTO and USP44. Th
 **Caveat:** gene-level counts can't separate FTO from IFEX9. IFEX9 has no gene ID of its own in the Ensembl 75 annotation used by Beat AML, so its reads that overlap FTO exons are counted as FTO. Our "FTO up" may really be IFEX9.
 
 ![Primitive and committed scores by group](figures/06_subgroup_primitive_committed.png)
+
+**Shared vs subgroup-specific genes.** In an extra DESeq2 model that compares each subgroup with wild-type, HOXA9, HOXA10, MEIS1 and PBX3 are up and CD34 down in both subgroups, so the HOX program belongs to NPM1-mutated AML as a whole. Of the 1,019 genes from the main model, 513 change about equally in both subgroups, 388 mostly in the primitive-like group (including NEK10, FTO and USP44) and 118 mostly in the committed-like group (rule: one subgroup's fold change at least 2x the other's). Scatter plot: `figures/06_subgroup_shared_vs_specific.png`.
 
 ## Data and citations
 

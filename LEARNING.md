@@ -247,11 +247,42 @@ Report only. Nothing filtered, DESeq2 model untouched. The high/low split is the
 - **Why the overlap with Mer et al. is so strong:** both scores come from the same RNA-seq, so some of the agreement is just "immature samples express immature genes". What makes it convincing is that the marker genes were picked by a different group in a different cohort, and they split our samples the same way.
 
 **Open questions**
-1. Mer et al. report the subtypes respond differently to kinase inhibitors in ex vivo drug screens. Beat AML has drug AUCs (`data/beataml_probit_curve_fits_v4_dbgap.txt`). Do you want step 2 to compare drug response between high and low, including any menin inhibitor tested?
-2. Should the README figure for this be the primitive/committed boxplot (`figures/06_subgroup_primitive_committed.png`) or the Session 4 block plot?
-3. Do we want a sensitivity DESeq2 run with the subgroup as a covariate, to see which NPM1 genes are NPM1-wide vs subgroup-driven? That's a design change, so it's your call.
+1. Drug response by subgroup (sorafenib, sunitinib, quizartinib, any menin inhibitor in the Beat AML drug AUC file). Mer et al. found the subtypes respond differently to kinase inhibitors. *Decision: planned for a later session, not now.*
+
+### Session 5, sensitivity DESeq2 with the two NPM1 subgroups (`scripts/07_deseq2_subgroups.R`)
+
+**What we did.** An extra model next to the main one (which doesn't change). NPM1-mutated is split into the Session 4 groups, so `group` has three levels: wild-type (reference, n = 176), NPM1-high (primitive-like, n = 39) and NPM1-low (committed-like, n = 61). Design `~ wave + specimen_type + sex + group`, same low-count filter, so the 19,398 genes match the main model one to one. Each subgroup is compared with wild-type, with apeglm-shrunken fold changes.
+
+**Key numbers**
+- **(a) The positive controls hold in both subgroups.** All are padj < 1e-4 in the expected direction:
+
+| Gene | NPM1-high vs wt | NPM1-low vs wt | Main model |
+|---|---|---|---|
+| HOXA9 | +1.79 | +1.37 | +1.60 |
+| HOXA10 | +1.59 | +1.38 | +1.51 |
+| MEIS1 | +1.98 | +1.23 | +1.60 |
+| PBX3 | +2.06 | +1.80 | +1.91 |
+| CD34 | -5.45 | -3.55 | -4.00 |
+
+- **(b) The scatter** (`figures/06_subgroup_shared_vs_specific.png`): the HOXA and HOXB genes sit near the diagonal, so they go up about as much in both subgroups. NEK10, USP44 and FTO sit straight up the y-axis: up only in the high group, close to zero in the low group.
+- **(c) Of the 1,019 main-model genes:**
+  - *By fold change* (shared if neither subgroup's change is more than 2x the other's): **513 shared, 388 mostly high, 118 mostly low**, 0 going the wrong way in both.
+  - *By significance* (padj < 0.05 in the main-model direction): 800 in both, 142 only in high, 70 only in low, 7 in neither.
+  - The 142 "high only" genes are mostly up genes (116 of 142), even though the high group is smaller and has less power. That's the NEK10/FTO/USP44 module.
+
+**What I should understand**
+- *The core NPM1 signature is shared.* HOX/MEIS1/PBX3 up and CD34 down hold in both subgroups, so the menin-dependent HOX program is a feature of NPM1-mutated AML as a whole, not of one subgroup. That's what you'd expect if menin inhibitors work across NPM1-mutated AML.
+- *About half the main-model list is shared and over a third leans to the primitive-like group.* Some of the "NPM1 genes" in our main table are really "primitive-subgroup genes" diluted across all 100 NPM1-mutated samples. NEK10 and FTO, our top two up genes, are the clearest examples: they're not NPM1-wide at all.
+- *Two views of "shared" give different counts* because significance depends on group size (61 vs 39) and fold change doesn't. The fold-change view is fairer when the groups are different sizes; the significance view is shown so you can see the cut doesn't drive the story.
+- *CD34 is lower in the primitive-like group than in the committed-like one* (-5.5 vs -3.6). Odd at first sight: "primitive" sounds like it should be CD34-high. But NPM1-mutated AML is typically CD34-negative, and Mer et al.'s primitive signature is about other stem-like genes (CDH2, ZNF521, HHIP...), not CD34. Worth checking against their paper before we write anything about it.
 
 **Deviations**
+- *Two rules for "shared vs driven by one"*, a fold-change ratio (2x) and a significance rule. You asked for the count without fixing a rule; both are in `results/deseq2_subgroups_shared_counts.csv`, and the figure uses the fold-change rule.
+- *Extra outputs:* `results/deseq2_subgroups_controls.csv`, `results/deseq2_subgroups_shared_counts.csv`, `results/sessionInfo_07_deseq2_subgroups.txt`.
+- *Script numbered 07*, with the figure named `06_subgroup_shared_vs_specific.png` as you asked.
+- *`scripts/run_all.R` added* (runs 01 to 07 in order, each in its own R process). Not test-run from a clean checkout, as agreed; a later session does that.
+
+### Session 5, step 1 deviations
 - *Extra mutations checked* beyond TET2/IDH2/FLT3-ITD: DNMT3A, IDH1, FLT3-TKD, NRAS, KRAS, PTPN11, cohesin, plus NPM1 VAF. These were on the Session 4 open-question list.
 - *Mutation calls from the exome file only*, not the clinical `variantSummary` text. The exome sees NPM1 in only 81 of 97 samples (the clinical call is better for NPM1), so some TET2/IDH2 carriers may be missed too. The denominator for all mutation counts is the 97 with exome data.
 - *Primitive/committed call* uses two-cluster k-means on primitive-minus-committed (seed 2026). Mer et al. used their own clustering on many more genes, so this is an approximation; the continuous scores and per-gene tests don't depend on it.
