@@ -12,7 +12,7 @@ scripts <- c(
   "scripts/04_deseq2.R",            # main DESeq2 model + FLT3-ITD sensitivity
   "scripts/05_enrichment.R",        # GSEA, three-group plot, NEK10/FTO block
   "scripts/06_subgroup.R",          # block group vs published NPM1 subgroups
-  "scripts/07_deseq2_subgroups.R"   # sensitivity DESeq2 with NPM1-high/low
+  "scripts/06b_deseq2_subgroups.R"   # sensitivity DESeq2 with NPM1-high/low
 )
 
 if (!file.exists("CLAUDE.md")) stop("Run this from the repo root")

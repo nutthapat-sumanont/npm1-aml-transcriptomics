@@ -1,4 +1,4 @@
-# 07_deseq2_subgroups.R
+# 06b_deseq2_subgroups.R
 # Sensitivity DESeq2 (extra model only; the main model in 04_deseq2.R is
 # unchanged). Splits NPM1-mutated AML into the two Session 4 groups:
 #
@@ -11,7 +11,7 @@
 #  (c) Of the 1,019 main-model genes (padj < 0.05, |log2FC| > 1), how many are
 #      shared by both subgroups and how many are driven mostly by one?
 #
-# Run from the repo root:  Rscript scripts/07_deseq2_subgroups.R  (~10 minutes)
+# Run from the repo root:  Rscript scripts/06b_deseq2_subgroups.R  (~10 minutes)
 # Needs data/ (01), results/cohort.csv (02), results/deseq2_npm1.csv (04) and
 # results/block_nek10_fto_scores.csv (05).
 
@@ -188,5 +188,5 @@ p <- ggplot(plot_tab, aes(log2FC_low_vs_wt, log2FC_high_vs_wt)) +
 save_fig(p, "06_subgroup_shared_vs_specific.png", w = 8, h = 7.5)
 
 writeLines(c(paste("Design:", deparse(design_sub)), capture.output(sessionInfo())),
-           "results/sessionInfo_07_deseq2_subgroups.txt")
+           "results/sessionInfo_06b_deseq2_subgroups.txt")
 cat("\nDone.\n")

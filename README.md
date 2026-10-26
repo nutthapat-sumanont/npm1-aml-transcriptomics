@@ -14,7 +14,7 @@ Scripts run from the repo root, in order:
 | `scripts/04_deseq2.R` | DESeq2, `~ wave + specimen_type + sex + NPM1_status`, plus a FLT3-ITD sensitivity model |
 | `scripts/05_enrichment.R` | GSEA (Hallmark, GO BP, Verhaak NPM1 controls), HOXA9/MEIS1 three-group plot, NEK10/FTO/USP44 check |
 | `scripts/06_subgroup.R` | What the NEK10/FTO/USP44-high group within NPM1-mutated AML corresponds to |
-| `scripts/07_deseq2_subgroups.R` | Sensitivity DESeq2: each NPM1 subgroup vs wild-type (extra model; the main model is unchanged) |
+| `scripts/06b_deseq2_subgroups.R` | Sensitivity DESeq2: each NPM1 subgroup vs wild-type (extra model; the main model is unchanged) |
 
 `scripts/run_all.R` runs all of them in order.
 

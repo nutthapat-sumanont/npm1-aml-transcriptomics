@@ -249,7 +249,7 @@ Report only. Nothing filtered, DESeq2 model untouched. The high/low split is the
 **Open questions**
 1. Drug response by subgroup (sorafenib, sunitinib, quizartinib, any menin inhibitor in the Beat AML drug AUC file). Mer et al. found the subtypes respond differently to kinase inhibitors. *Decision: planned for a later session, not now.*
 
-### Session 5, sensitivity DESeq2 with the two NPM1 subgroups (`scripts/07_deseq2_subgroups.R`)
+### Session 5, sensitivity DESeq2 with the two NPM1 subgroups (`scripts/06b_deseq2_subgroups.R`)
 
 **What we did.** An extra model next to the main one (which doesn't change). NPM1-mutated is split into the Session 4 groups, so `group` has three levels: wild-type (reference, n = 176), NPM1-high (primitive-like, n = 39) and NPM1-low (committed-like, n = 61). Design `~ wave + specimen_type + sex + group`, same low-count filter, so the 19,398 genes match the main model one to one. Each subgroup is compared with wild-type, with apeglm-shrunken fold changes.
 
@@ -278,9 +278,9 @@ Report only. Nothing filtered, DESeq2 model untouched. The high/low split is the
 
 **Deviations**
 - *Two rules for "shared vs driven by one"*, a fold-change ratio (2x) and a significance rule. You asked for the count without fixing a rule; both are in `results/deseq2_subgroups_shared_counts.csv`, and the figure uses the fold-change rule.
-- *Extra outputs:* `results/deseq2_subgroups_controls.csv`, `results/deseq2_subgroups_shared_counts.csv`, `results/sessionInfo_07_deseq2_subgroups.txt`.
-- *Script numbered 07*, with the figure named `06_subgroup_shared_vs_specific.png` as you asked.
-- *`scripts/run_all.R` added* (runs 01 to 07 in order, each in its own R process). Not test-run from a clean checkout, as agreed; a later session does that.
+- *Extra outputs:* `results/deseq2_subgroups_controls.csv`, `results/deseq2_subgroups_shared_counts.csv`, `results/sessionInfo_06b_deseq2_subgroups.txt`.
+- *Script numbered 06b* (first saved as 07, renamed later in the session because the next session uses 07), with the figure named `06_subgroup_shared_vs_specific.png` as you asked.
+- *`scripts/run_all.R` added* (runs 01 to 06b in order, each in its own R process). Not test-run from a clean checkout, as agreed; a later session does that.
 
 ### Session 5, step 1 deviations
 - *Extra mutations checked* beyond TET2/IDH2/FLT3-ITD: DNMT3A, IDH1, FLT3-TKD, NRAS, KRAS, PTPN11, cohesin, plus NPM1 VAF. These were on the Session 4 open-question list.
