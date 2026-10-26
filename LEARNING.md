@@ -206,3 +206,146 @@ What the KMT2A flag means:
 - *Three-group VST* is a fresh blind VST on the 300 samples (276 main + 24 KMT2A-r), same low-count rule as before, not the Session 3 VST (which had only the 276).
 - *Extra outputs not asked for:* `results/gsea_summary.csv`, `results/three_group_summary.csv`, `results/three_group_tests.csv`, `results/block_nek10_fto_*.csv` (scores, associations, per-gene FLT3-ITD test), and a per-gene FLT3-ITD test plus a three-gene core score, added after the plot showed WDR86 behaving differently.
 - *`data/` was re-downloaded* with `scripts/01_download.R` (new container); nothing in it is committed.
+
+## Session 5 (2026-10-26): step 1, what is the NEK10/FTO/USP44-high group? (`scripts/06_subgroup.R`)
+
+Report only. Nothing filtered, DESeq2 model untouched. The high/low split is the one from Session 4 (39 high, 61 low), read from `results/block_nek10_fto_scores.csv`.
+
+**What we did, step by step**
+1. **Co-mutations.** Pulled DNMT3A, TET2, IDH1, IDH2, FLT3-TKD (D835/I836), NRAS, KRAS, PTPN11 and cohesin genes (SMC1A, SMC3, RAD21, STAG2) from the Beat AML exome calls; FLT3-ITD comes from the clinical table, since exomes can't call ITDs. 97 of the 100 NPM1-mutated samples have exome data; the other 3 are NA, not "wild-type". Fisher's test high vs low, BH-corrected across the 10 features.
+2. **The triple combination** from Arza-Apalategi et al.: counted samples with NPM1 + FLT3-ITD + (TET2 or IDH2).
+3. **Primitive vs committed** (Mer et al. 2021). Primitive score = mean z-score of CDH2, GPR12, MDFI, ZNF521, PLXNB1, HHIP; committed score = mean z-score of CD163, C1QA, CD14, MARCO, MSR1; both within the 100 NPM1-mutated samples. Same blind VST as Session 4 (all 11 markers pass the low-count filter anyway).
+4. **What sits inside FTO in our annotation.** Asked the Ensembl GRCh37 server which genes overlap FTO, saved to `results/fto_locus_genes_grch37.csv`.
+
+**Key numbers**
+- **Co-mutations (high vs low, % of samples with exome data):**
+
+| | Low (n=60) | High (n=37) | Fisher p | BH padj |
+|---|---|---|---|---|
+| FLT3-ITD (n=61 / 39) | 34% | 51% | 0.10 | 0.15 |
+| TET2 | 12% | 32% | 0.018 | 0.044 |
+| IDH2 | 15% | 35% | 0.027 | 0.053 |
+| IDH1 | 12% | 14% | 0.76 | 0.85 |
+| DNMT3A | 57% | 27% | 0.006 | 0.021 |
+| PTPN11 | 25% | 0% | 0.0004 | 0.004 |
+| NRAS | 20% | 0% | 0.003 | 0.015 |
+| FLT3-TKD | 12% | 0% | 0.04 | 0.07 |
+| cohesin | 17% | 5% | 0.12 | 0.15 |
+
+- **NPM1 + FLT3-ITD + (TET2 or IDH2): 15 of 97** samples with exome data. **10 of 37 high (27%) vs 5 of 60 low (8%)**, Fisher p = 0.02. Of the 15: 5 with TET2, 10 with IDH2. NPM1 + (TET2 or IDH2) alone: 25 of 37 high vs 16 of 60 low (p = 1e-4).
+- **Primitive vs committed lines up almost perfectly.** All 6 primitive markers are higher in the high group (by 3 to 9 VST units, every BH padj < 1e-7) and all 5 committed markers lower (by 3 to 4.6 units, padj < 1e-4). Primitive score vs the NEK10/FTO/USP44 core score: Spearman 0.91. A two-cluster split of primitive-minus-committed gives 35 of 39 high samples "primitive-like" and 55 of 61 low "committed-like" (Fisher p = 2e-16).
+- **FTO locus:** in our annotation (Ensembl 75) the genes inside FTO are FTO itself, three antisense RNAs (RP11-357N13.1/2/3), FTO-IT1 and a pseudogene. None is called IFEX9. Only FTO-IT1 has enough reads to test, and it barely tracks FTO (Spearman 0.31).
+- NPM1 variant allele frequency (exome): median 0.31 high vs 0.28 low (p = 0.025). Small difference; the high group isn't explained by lower leukaemia content.
+
+**What I should understand**
+- **This group isn't new. It matches two published NPM1 subgroups.**
+  - *Arza-Apalategi et al., Leukemia 2023* found that "high FTO" in about a third of NPM1-mutated AML is really a long non-coding RNA called IFEX9 that sits inside the FTO gene. They linked it to FLT3-ITD, TET2, IDH2 and an immature profile. Our group is 39% of NPM1-mutated cases, is enriched for TET2 and IDH2, leans towards FLT3-ITD (51% vs 34%, not significant on its own), and holds two-thirds of the NPM1 + FLT3-ITD + TET2/IDH2 cases. That's the same picture.
+  - *Mer et al., Nature Communications 2021* split NPM1-mutated AML into "primitive" (stem cell signature) and "committed" subtypes. Our high group is their primitive subtype, almost one to one.
+  - Read together: the immature profile the Leukemia paper describes and the primitive subtype of the Nature Communications paper look like the same biology, and our NEK10/FTO/USP44 genes are markers of it in Beat AML.
+- **Our "FTO up" may really be IFEX9.** Gene-level counts add up every read that lands in a gene's exons. IFEX9 doesn't have its own gene ID in our annotation (Ensembl 75), so any of its reads that overlap FTO exons get counted as FTO. With gene-level counts we can't tell FTO from IFEX9. Telling them apart would need transcript-level quantification (e.g. salmon against an annotation that includes IFEX9) or the raw reads, and Beat AML only shares counts openly. So "FTO is up in NPM1-mutated AML" in our DESeq2 table should be read as "the FTO locus is up", most likely driven by this subgroup.
+- **The mutation pattern makes sense next to the primitive/committed idea.** The committed (low) group carries all the RAS-pathway mutations (NRAS, PTPN11) and the FLT3-TKD cases and more DNMT3A; the primitive (high) group carries TET2 and IDH2. These are associations from small numbers (37 vs 60), so they're a hint, not a finding.
+- **Why the overlap with Mer et al. is so strong:** both scores come from the same RNA-seq, so some of the agreement is just "immature samples express immature genes". What makes it convincing is that the marker genes were picked by a different group in a different cohort, and they split our samples the same way.
+
+**Open questions**
+1. Drug response by subgroup (sorafenib, sunitinib, quizartinib, any menin inhibitor in the Beat AML drug AUC file). Mer et al. found the subtypes respond differently to kinase inhibitors. *Decision: planned for a later session, not now.*
+
+### Session 5, sensitivity DESeq2 with the two NPM1 subgroups (`scripts/06b_deseq2_subgroups.R`)
+
+**What we did.** An extra model next to the main one (which doesn't change). NPM1-mutated is split into the Session 4 groups, so `group` has three levels: wild-type (reference, n = 176), NPM1-high (primitive-like, n = 39) and NPM1-low (committed-like, n = 61). Design `~ wave + specimen_type + sex + group`, same low-count filter, so the 19,398 genes match the main model one to one. Each subgroup is compared with wild-type, with apeglm-shrunken fold changes.
+
+**Key numbers**
+- **(a) The positive controls hold in both subgroups.** All are padj < 1e-4 in the expected direction:
+
+| Gene | NPM1-high vs wt | NPM1-low vs wt | Main model |
+|---|---|---|---|
+| HOXA9 | +1.79 | +1.37 | +1.60 |
+| HOXA10 | +1.59 | +1.38 | +1.51 |
+| MEIS1 | +1.98 | +1.23 | +1.60 |
+| PBX3 | +2.06 | +1.80 | +1.91 |
+| CD34 | -5.45 | -3.55 | -4.00 |
+
+- **(b) The scatter** (`figures/06_subgroup_shared_vs_specific.png`): the HOXA and HOXB genes sit near the diagonal, so they go up about as much in both subgroups. NEK10, USP44 and FTO sit straight up the y-axis: up only in the high group, close to zero in the low group.
+- **(c) Of the 1,019 main-model genes:**
+  - *By fold change* (shared if neither subgroup's change is more than 2x the other's): **513 shared, 388 mostly high, 118 mostly low**, 0 going the wrong way in both.
+  - *By significance* (padj < 0.05 in the main-model direction): 800 in both, 142 only in high, 70 only in low, 7 in neither.
+  - The 142 "high only" genes are mostly up genes (116 of 142), even though the high group is smaller and has less power. That's the NEK10/FTO/USP44 module.
+
+**What I should understand**
+- *The core NPM1 signature is shared.* HOX/MEIS1/PBX3 up and CD34 down hold in both subgroups, so the menin-dependent HOX program is a feature of NPM1-mutated AML as a whole, not of one subgroup. That's what you'd expect if menin inhibitors work across NPM1-mutated AML.
+- *About half the main-model list is shared and over a third leans to the primitive-like group.* Some of the "NPM1 genes" in our main table are really "primitive-subgroup genes" diluted across all 100 NPM1-mutated samples. NEK10 and FTO, our top two up genes, are the clearest examples: they're not NPM1-wide at all.
+- *Two views of "shared" give different counts* because significance depends on group size (61 vs 39) and fold change doesn't. The fold-change view is fairer when the groups are different sizes; the significance view is shown so you can see the cut doesn't drive the story.
+- *CD34 is lower in the primitive-like group than in the committed-like one* (-5.5 vs -3.6). Odd at first sight: "primitive" sounds like it should be CD34-high. But NPM1-mutated AML is typically CD34-negative, and Mer et al.'s primitive signature is about other stem-like genes (CDH2, ZNF521, HHIP...), not CD34. Worth checking against their paper before we write anything about it.
+
+**Deviations**
+- *Two rules for "shared vs driven by one"*, a fold-change ratio (2x) and a significance rule. You asked for the count without fixing a rule; both are in `results/deseq2_subgroups_shared_counts.csv`, and the figure uses the fold-change rule.
+- *Extra outputs:* `results/deseq2_subgroups_controls.csv`, `results/deseq2_subgroups_shared_counts.csv`, `results/sessionInfo_06b_deseq2_subgroups.txt`.
+- *Script numbered 06b* (first saved as 07, renamed later in the session because the next session uses 07), with the figure named `06_subgroup_shared_vs_specific.png` as you asked.
+- *`scripts/run_all.R` added* (runs 01 to 06b in order, each in its own R process). Not test-run from a clean checkout, as agreed; a later session does that.
+
+### Session 5, step 1 deviations
+- *Extra mutations checked* beyond TET2/IDH2/FLT3-ITD: DNMT3A, IDH1, FLT3-TKD, NRAS, KRAS, PTPN11, cohesin, plus NPM1 VAF. These were on the Session 4 open-question list.
+- *Mutation calls from the exome file only*, not the clinical `variantSummary` text. The exome sees NPM1 in only 81 of 97 samples (the clinical call is better for NPM1), so some TET2/IDH2 carriers may be missed too. The denominator for all mutation counts is the 97 with exome data.
+- *Primitive/committed call* uses two-cluster k-means on primitive-minus-committed (seed 2026). Mer et al. used their own clustering on many more genes, so this is an approximation; the continuous scores and per-gene tests don't depend on it.
+- *Marker genes forced through the low-count filter* in the VST; in practice all 11 pass anyway, so this changed nothing.
+- *FTO-locus gene list* from the Ensembl GRCh37 REST server, saved to `results/fto_locus_genes_grch37.csv`.
+- *`data/` re-downloaded* with `scripts/01_download.R` (new container).
+
+### Session 5, rest of the session: rename, collapsed GO terms, README write-up
+
+**What we did**
+1. **Renamed** `scripts/07_deseq2_subgroups.R` to `scripts/06b_deseq2_subgroups.R` and its session info file to `results/sessionInfo_06b_deseq2_subgroups.txt`, because the next session uses 07. Updated every reference (run_all.R, CLAUDE.md, README.md, this file).
+2. **Collapsed redundant GO BP terms** (new step 4b in `scripts/05_enrichment.R`). `fgsea::collapsePathways` takes the significant terms from most to least significant and asks, for each one, whether it's still enriched once you account for a more significant term it overlaps with. If not, it's folded into that "parent" term. New outputs: `results/gsea_gobp_collapsed.csv` (every FDR < 0.05 term, whether it's a main term, its parent and how many terms fold into it) and `figures/05_gsea_dotplot_gobp_collapsed.png`.
+3. **Rewrote README.md as a short paper-style write-up.** Data, Methods, Results (eight figures, each with a one-paragraph caption) and How to reproduce are filled in. Summary, Background, Question and hypothesis, Interpretation, Limitations, Next steps and AI use are headings with a one-line note for you to write.
+4. **Collected candidate limitations and next steps** from all sessions (list below).
+
+**Key numbers**
+- GO BP terms at FDR < 0.05: **468, down to 154 after collapsing** (18 up, 136 down).
+- The collapsed "up" list still leads with the HOX terms (embryonic skeletal system morphogenesis, NES +2.57; anterior/posterior pattern specification) and the cilium group (intraciliary transport, protein localization to cilium, cilium organization). The "down" side is antigen presentation (MHC class II), antigen receptor signalling, cell adhesion and cell-cycle terms.
+- Re-running `05_enrichment.R` gave identical GSEA tables (no CSV in `results/` changed), so the collapse step didn't disturb earlier results.
+
+**What I should understand**
+- *Collapsing doesn't change any result, only how many terms you have to read.* The 314 dropped terms are still significant; they just don't add anything beyond a parent term. The `parent` column in `results/gsea_gobp_collapsed.csv` shows where each one went.
+- *154 terms is still a lot*, mostly because the "down" side covers many separate themes (immune, adhesion, cell cycle, ion transport). The dot plot shows the top 15 each way.
+- *The cilium terms survive collapsing*, so they aren't just an echo of the HOX terms. Still an open question (Session 4, question 3).
+
+**Candidate limitations (all sessions)**
+- Bulk RNA-seq mixes leukaemic and non-leukaemic cells; blast percentage and purity aren't in the model, so some "down" pathways (cell cycle, MHC class II, immune) may reflect cell mix, not gene regulation.
+- One cohort only; apart from the Verhaak gene sets, nothing is validated in an independent dataset.
+- Observational data: associations, not cause and effect.
+- Cohort limited to de novo AML at diagnosis; results may not carry over to secondary, therapy-related or relapsed AML.
+- NPM1 status is the clinical consensus call; the exome detects NPM1 in only 81 of 97 NPM1-mutated samples, so the exome can't fully cross-check it.
+- KMT2A-PTD isn't tested consistently in Beat AML; 8 wild-type samples with PTD in their notes stay in the main cohort.
+- Sex is unbalanced (64% female in NPM1-mutated vs 41% in wild-type); chrY genes and XIST had to be removed before enrichment, and one female sample (BA3206R) has partial Y expression.
+- One sample dropped as a possible swap (BA2294R); others could exist that the sex check can't catch.
+- Batch: the wave "Both" level has only 5 samples.
+- Old gene annotation (Ensembl 75, GRCh37, 2014 symbols); only gene-level counts are openly available, so transcripts (FTO vs IFEX9) can't be separated.
+- GSEA: gene sets overlap; Hallmark sets lean "down" as a group in our ranking; FDR is corrected within each collection, not across all of them.
+- The NEK10/FTO/USP44 subgroup was found in the same data it's tested in; the k-means split and the bimodality (coefficient 0.70) are modest evidence of two clean groups.
+- The primitive/committed call uses 11 marker genes, an approximation of Mer et al.'s method.
+- Co-mutation tests rest on small numbers (37 vs 60 with exome data) and several features; the exome may miss subclonal mutations; FLT3-ITD comes from a clinical assay, not the exome.
+- Thresholds are choices: padj < 0.05 with |log2FC| > 1, the low-count filter (10 reads in 100 samples), the 2x rule for "shared vs mostly one subgroup".
+- Age, ELN risk and blast percentage aren't in the DESeq2 model.
+- The menin link is inferred from HOXA9/MEIS1 expression; no menin inhibitor response data have been analysed yet.
+- No survival or drug response analysis yet.
+- `scripts/run_all.R` hasn't been run from a clean checkout.
+
+**Candidate next steps (all sessions)**
+- Drug response by subgroup: sorafenib, sunitinib, quizartinib and any menin inhibitor in the Beat AML drug AUC file (planned for a later session).
+- Test published menin-inhibitor response signatures (genes that fall after revumenib or VTP50469) against our ranking; the gene lists have to come from papers.
+- Clean run of `scripts/run_all.R` from a fresh checkout.
+- Replicate the NEK10/FTO/USP44 and primitive/committed split in an independent cohort (for example TCGA LAML or Leucegene).
+- Separate IFEX9 from FTO with transcript-level data (needs raw reads, or a dataset that has IFEX9 in its annotation).
+- Survival by subgroup (Mer et al. reported a survival difference).
+- Check why CD34 is lower in the primitive-like group than in the committed-like group, against Mer et al.
+- Look into the cilium terms: leading-edge genes and a short literature search.
+- Cell-type deconvolution to separate cell mix from gene regulation in the "down" pathways.
+- Adjust for blast percentage or NPM1 VAF as a purity proxy.
+- Identify the HOXA9-high "other AML" cases (KMT2A-PTD, NUP98 fusions, other lesions?).
+- Polish figures for the portfolio.
+
+**Deviations**
+- *`05_enrichment.R` was re-run* to add the collapse step. All CSV tables came out identical. Two committed files changed as a side effect: `figures/05_three_group_hoxa9_meis1.png` (the jitter positions moved, because the new step uses the random number generator before the plot; the data points are the same) and `results/sessionInfo_05_enrichment.txt` (one extra package loaded, curl).
+- *Collapse settings:* `collapsePathways` on the 468 FDR < 0.05 terms, default threshold (p < 0.05), seed 2026. The uncollapsed dot plot (`figures/05_gsea_dotplot_gobp.png`) is kept.
+- *README extras not asked for:* a table of the data files used, a cohort paragraph in Data, a References section, and a line in the CC-BY-4.0 attribution saying the data are used unchanged apart from our filtering and that the Beat AML team doesn't endorse this project. The Verhaak UP caption also gives the DN result.
+- *Fixed a wrong citation in a code comment:* `05_enrichment.R` said Verhaak et al. 2005 was in *Haematologica*; it's *Blood* 2005;106:3747-3754. All five references in README.md were checked against PubMed.
+- *`data/` re-downloaded* with `scripts/01_download.R` at the start of this session (new container); nothing in it is committed.
