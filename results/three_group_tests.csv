@@ -1,0 +1,7 @@
+"gene","comparison","median_diff","wilcox_p"
+"HOXA9","NPM1-mutated vs Other AML",2.71752488842959,0
+"HOXA9","KMT2A-rearranged vs Other AML",2.81284496202812,3.61725049913275e-09
+"HOXA9","NPM1-mutated vs KMT2A-rearranged",-0.0953200735985309,0.423678208746016
+"MEIS1","NPM1-mutated vs Other AML",2.19370191794699,0
+"MEIS1","KMT2A-rearranged vs Other AML",2.04153395303177,2.8415450659125e-08
+"MEIS1","NPM1-mutated vs KMT2A-rearranged",0.152167964915225,0.398486068221616
