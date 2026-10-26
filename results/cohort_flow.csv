@@ -1,7 +1,10 @@
-"step","description","samples","patients","npm1_positive","npm1_negative"
-0,"All samples in clinical summary",942,805,240,698
-1,"Has RNA-seq and is in counts matrix",671,613,174,493
-2,"AML at specimen acquisition",654,596,174,476
-3,"Initial diagnosis sample",445,443,125,320
-4,"NPM1 status known",445,443,125,320
-5,"One sample per patient (earliest, bone marrow first)",443,443,125,318
+"step","description","samples","patients","npm1_positive","npm1_negative","npm1_mut_pct"
+0,"All samples in clinical summary",942,805,240,698,25.6
+1,"Has RNA-seq and is in counts matrix",671,613,174,493,26.1
+2,"AML at specimen acquisition",654,596,174,476,26.8
+3,"Initial diagnosis sample",445,443,125,320,28.1
+4,"NPM1 status known",445,443,125,320,28.1
+5,"One sample per patient (earliest, bone marrow first)",443,443,125,318,28.2
+6,"De novo AML only",317,317,102,215,32.2
+7,"Drop APL (PML-RARA)",301,301,102,199,33.9
+8,"Drop KMT2A fusions (kept in cohort.csv, main_cohort = FALSE)",277,277,100,177,36.1

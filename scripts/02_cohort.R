@@ -95,28 +95,55 @@ s5 <- s4 %>%
 
 stopifnot(!any(duplicated(s5$dbgap_subject_id)))
 
-flow <- bind_rows(flow)
+# Flags used by steps 6 to 8. consensusAMLFusions comes from manual review of
+# clinical cytogenetics plus RNA-seq fusion calls. "KMT2A_re" (partner not
+# named) and "MLLT3-KMT2A" (t(9;11)) are KMT2A fusions, not KMT2A-PTD.
+s5 <- s5 %>%
+  mutate(KMT2A_rearranged = grepl("KMT2A", consensusAMLFusions),
+         APL = grepl("PML-RARA", consensusAMLFusions))
+
+# 6. De novo AML only. isDenovo is FALSE for AML that transformed from MDS/MPN,
+#    therapy-related AML, and anyone with a previous cancer. 1 "unknown" dropped.
+s6 <- s5 %>%
+  filter(isDenovo == "TRUE") %>%
+  log_step(6, "De novo AML only", .)
+
+# 7. Drop APL (PML-RARA): very different biology and treatment
+s7 <- s6 %>%
+  filter(!APL) %>%
+  log_step(7, "Drop APL (PML-RARA)", .)
+
+# 8. Drop KMT2A fusions from the main comparison. They are menin-dependent
+#    like NPM1-mutated AML, so they stay in cohort.csv as a separate group.
+s8 <- s7 %>%
+  filter(!KMT2A_rearranged) %>%
+  log_step(8, "Drop KMT2A fusions (kept in cohort.csv, main_cohort = FALSE)", .)
+
+flow <- bind_rows(flow) %>%
+  mutate(npm1_mut_pct = round(100 * npm1_positive / (npm1_positive + npm1_negative), 1))
 cat("\n-- Cohort flow --\n")
 print(flow, row.names = FALSE)
 
-# Final cohort, with flags for choices we will make at the DESeq2 step
-cohort <- s5 %>%
+# cohort.csv holds the main cohort plus the KMT2A-fusion cases from step 7.
+# main_cohort marks the 2-group NPM1 comparison; group is for plotting.
+cohort <- s7 %>%
   transmute(
     dbgap_subject_id, dbgap_rnaseq_sample, dbgap_dnaseq_sample,
     NPM1 = factor(ifelse(NPM1 == "positive", "mut", "wt"), levels = c("wt", "mut")),
+    main_cohort = !KMT2A_rearranged,
+    group = ifelse(KMT2A_rearranged, "KMT2A_r",
+                   ifelse(NPM1 == "mut", "NPM1_mut", "NPM1_wt")),
     FLT3_ITD = `FLT3-ITD`,
     specimenType, cohort, centerID, consensus_sex, ageAtDiagnosis,
-    isDenovo, isTransformed, specificDxAtAcquisition, consensusAMLFusions,
-    KMT2A_rearranged = grepl("KMT2A", consensusAMLFusions),
-    APL = grepl("PML-RARA", consensusAMLFusions),
-    ELN2017
+    isDenovo, specificDxAtAcquisition, consensusAMLFusions,
+    KMT2A_rearranged, ELN2017
   )
 
-cat("\nNPM1 groups:\n");            print(table(cohort$NPM1))
-cat("\nSpecimen type by NPM1:\n");  print(table(cohort$specimenType, cohort$NPM1))
-cat("\nDe novo by NPM1:\n");        print(table(cohort$isDenovo, cohort$NPM1))
-cat("\nKMT2A-r by NPM1:\n");        print(table(cohort$KMT2A_rearranged, cohort$NPM1))
-cat("\nAPL by NPM1:\n");            print(table(cohort$APL, cohort$NPM1))
+cat("\nGroups:\n");                          print(table(cohort$group))
+cat("\nKMT2A fusions by NPM1 status:\n");    print(table(cohort$consensusAMLFusions[cohort$KMT2A_rearranged],
+                                                         cohort$NPM1[cohort$KMT2A_rearranged]))
+main <- filter(cohort, main_cohort)
+cat("\nMain cohort, specimen type by NPM1:\n"); print(table(main$specimenType, main$NPM1))
 
 dir.create("results", showWarnings = FALSE)
 write.csv(flow, "results/cohort_flow.csv", row.names = FALSE)
