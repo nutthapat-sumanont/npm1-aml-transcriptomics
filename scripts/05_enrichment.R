@@ -9,6 +9,8 @@
 #  3. Positive controls: VERHAAK_AML_WITH_NPM1_MUTATED_UP and _DN (MSigDB C2),
 #     with an enrichment plot for each.
 #  4. Dot plot of the top 15 up and top 15 down pathways by NES.
+#  4b. (Session 5) Collapse redundant GO BP terms with fgsea::collapsePathways
+#      and redraw the GO BP dot plot.
 #  5. Three-group plot of HOXA9 and MEIS1 (VST): NPM1-mutated,
 #     KMT2A-rearranged, other AML.
 #  6. Does the NEK10 / FTO / USP44 / WDR86 block mark a subgroup within
@@ -234,6 +236,38 @@ save_fig(dot_plot(gsea_tab$hallmark, "HALLMARK", "MSigDB Hallmark"),
          "05_gsea_dotplot_hallmark.png", w = 8, h = 6.5)
 save_fig(dot_plot(gsea_tab$gobp, "GOBP", "GO Biological Process"),
          "05_gsea_dotplot_gobp.png", w = 10, h = 8)
+
+# ---- 5b. Collapse redundant GO BP terms (added in Session 5) -----------------
+# GO terms overlap a lot ("cell cycle", "mitotic cell cycle", ...), so many of
+# the 468 hits say the same thing. fgsea::collapsePathways goes through the
+# significant terms from most to least significant and asks, for each one:
+# is it still enriched once we account for a more significant term it overlaps
+# with? If not, it becomes a "child" of that term and drops out. What's left
+# ("main pathways") is a less redundant list. Uses permutations, so seeded.
+
+gobp_sig <- gsea$gobp[!is.na(gsea$gobp$padj) & gsea$gobp$padj < padj_cut, ]
+gobp_sig <- gobp_sig[order(gobp_sig$pval), ]
+set.seed(2026)
+collapsed <- collapsePathways(gobp_sig, sets$gobp, ranks)
+cat("\nGO BP terms at FDR < 0.05:", nrow(gobp_sig), "-> after collapsing:",
+    length(collapsed$mainPathways), "main terms (",
+    sum(gobp_sig$NES[gobp_sig$pathway %in% collapsed$mainPathways] > 0), "up,",
+    sum(gobp_sig$NES[gobp_sig$pathway %in% collapsed$mainPathways] < 0), "down )\n")
+
+gobp_collapsed <- gsea_tab$gobp %>%
+  filter(pathway %in% gobp_sig$pathway) %>%
+  mutate(main_pathway = pathway %in% collapsed$mainPathways,
+         parent = unname(collapsed$parentPathways[pathway]),
+         n_children = vapply(pathway, function(p)
+           sum(collapsed$parentPathways == p, na.rm = TRUE), integer(1))) %>%
+  arrange(desc(main_pathway), padj)
+write.csv(gobp_collapsed, "results/gsea_gobp_collapsed.csv", row.names = FALSE)
+save_fig(dot_plot(gobp_collapsed %>% filter(main_pathway), "GOBP",
+                  "GO Biological Process, redundant terms collapsed") +
+           labs(caption = sprintf(paste0("%d of %d terms at FDR < 0.05 remain after ",
+                                         "fgsea::collapsePathways"),
+                                  length(collapsed$mainPathways), nrow(gobp_sig))),
+         "05_gsea_dotplot_gobp_collapsed.png", w = 10, h = 8)
 
 # ---- 6. VST for the three-group plot and the block check ---------------------
 # All main-cohort samples plus the KMT2A-rearranged cases (same filters
