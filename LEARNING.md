@@ -289,3 +289,63 @@ Report only. Nothing filtered, DESeq2 model untouched. The high/low split is the
 - *Marker genes forced through the low-count filter* in the VST; in practice all 11 pass anyway, so this changed nothing.
 - *FTO-locus gene list* from the Ensembl GRCh37 REST server, saved to `results/fto_locus_genes_grch37.csv`.
 - *`data/` re-downloaded* with `scripts/01_download.R` (new container).
+
+### Session 5, rest of the session: rename, collapsed GO terms, README write-up
+
+**What we did**
+1. **Renamed** `scripts/07_deseq2_subgroups.R` to `scripts/06b_deseq2_subgroups.R` and its session info file to `results/sessionInfo_06b_deseq2_subgroups.txt`, because the next session uses 07. Updated every reference (run_all.R, CLAUDE.md, README.md, this file).
+2. **Collapsed redundant GO BP terms** (new step 4b in `scripts/05_enrichment.R`). `fgsea::collapsePathways` takes the significant terms from most to least significant and asks, for each one, whether it's still enriched once you account for a more significant term it overlaps with. If not, it's folded into that "parent" term. New outputs: `results/gsea_gobp_collapsed.csv` (every FDR < 0.05 term, whether it's a main term, its parent and how many terms fold into it) and `figures/05_gsea_dotplot_gobp_collapsed.png`.
+3. **Rewrote README.md as a short paper-style write-up.** Data, Methods, Results (eight figures, each with a one-paragraph caption) and How to reproduce are filled in. Summary, Background, Question and hypothesis, Interpretation, Limitations, Next steps and AI use are headings with a one-line note for you to write.
+4. **Collected candidate limitations and next steps** from all sessions (list below).
+
+**Key numbers**
+- GO BP terms at FDR < 0.05: **468, down to 154 after collapsing** (18 up, 136 down).
+- The collapsed "up" list still leads with the HOX terms (embryonic skeletal system morphogenesis, NES +2.57; anterior/posterior pattern specification) and the cilium group (intraciliary transport, protein localization to cilium, cilium organization). The "down" side is antigen presentation (MHC class II), antigen receptor signalling, cell adhesion and cell-cycle terms.
+- Re-running `05_enrichment.R` gave identical GSEA tables (no CSV in `results/` changed), so the collapse step didn't disturb earlier results.
+
+**What I should understand**
+- *Collapsing doesn't change any result, only how many terms you have to read.* The 314 dropped terms are still significant; they just don't add anything beyond a parent term. The `parent` column in `results/gsea_gobp_collapsed.csv` shows where each one went.
+- *154 terms is still a lot*, mostly because the "down" side covers many separate themes (immune, adhesion, cell cycle, ion transport). The dot plot shows the top 15 each way.
+- *The cilium terms survive collapsing*, so they aren't just an echo of the HOX terms. Still an open question (Session 4, question 3).
+
+**Candidate limitations (all sessions)**
+- Bulk RNA-seq mixes leukaemic and non-leukaemic cells; blast percentage and purity aren't in the model, so some "down" pathways (cell cycle, MHC class II, immune) may reflect cell mix, not gene regulation.
+- One cohort only; apart from the Verhaak gene sets, nothing is validated in an independent dataset.
+- Observational data: associations, not cause and effect.
+- Cohort limited to de novo AML at diagnosis; results may not carry over to secondary, therapy-related or relapsed AML.
+- NPM1 status is the clinical consensus call; the exome detects NPM1 in only 81 of 97 NPM1-mutated samples, so the exome can't fully cross-check it.
+- KMT2A-PTD isn't tested consistently in Beat AML; 8 wild-type samples with PTD in their notes stay in the main cohort.
+- Sex is unbalanced (64% female in NPM1-mutated vs 41% in wild-type); chrY genes and XIST had to be removed before enrichment, and one female sample (BA3206R) has partial Y expression.
+- One sample dropped as a possible swap (BA2294R); others could exist that the sex check can't catch.
+- Batch: the wave "Both" level has only 5 samples.
+- Old gene annotation (Ensembl 75, GRCh37, 2014 symbols); only gene-level counts are openly available, so transcripts (FTO vs IFEX9) can't be separated.
+- GSEA: gene sets overlap; Hallmark sets lean "down" as a group in our ranking; FDR is corrected within each collection, not across all of them.
+- The NEK10/FTO/USP44 subgroup was found in the same data it's tested in; the k-means split and the bimodality (coefficient 0.70) are modest evidence of two clean groups.
+- The primitive/committed call uses 11 marker genes, an approximation of Mer et al.'s method.
+- Co-mutation tests rest on small numbers (37 vs 60 with exome data) and several features; the exome may miss subclonal mutations; FLT3-ITD comes from a clinical assay, not the exome.
+- Thresholds are choices: padj < 0.05 with |log2FC| > 1, the low-count filter (10 reads in 100 samples), the 2x rule for "shared vs mostly one subgroup".
+- Age, ELN risk and blast percentage aren't in the DESeq2 model.
+- The menin link is inferred from HOXA9/MEIS1 expression; no menin inhibitor response data have been analysed yet.
+- No survival or drug response analysis yet.
+- `scripts/run_all.R` hasn't been run from a clean checkout.
+
+**Candidate next steps (all sessions)**
+- Drug response by subgroup: sorafenib, sunitinib, quizartinib and any menin inhibitor in the Beat AML drug AUC file (planned for a later session).
+- Test published menin-inhibitor response signatures (genes that fall after revumenib or VTP50469) against our ranking; the gene lists have to come from papers.
+- Clean run of `scripts/run_all.R` from a fresh checkout.
+- Replicate the NEK10/FTO/USP44 and primitive/committed split in an independent cohort (for example TCGA LAML or Leucegene).
+- Separate IFEX9 from FTO with transcript-level data (needs raw reads, or a dataset that has IFEX9 in its annotation).
+- Survival by subgroup (Mer et al. reported a survival difference).
+- Check why CD34 is lower in the primitive-like group than in the committed-like group, against Mer et al.
+- Look into the cilium terms: leading-edge genes and a short literature search.
+- Cell-type deconvolution to separate cell mix from gene regulation in the "down" pathways.
+- Adjust for blast percentage or NPM1 VAF as a purity proxy.
+- Identify the HOXA9-high "other AML" cases (KMT2A-PTD, NUP98 fusions, other lesions?).
+- Polish figures for the portfolio.
+
+**Deviations**
+- *`05_enrichment.R` was re-run* to add the collapse step. All CSV tables came out identical. Two committed files changed as a side effect: `figures/05_three_group_hoxa9_meis1.png` (the jitter positions moved, because the new step uses the random number generator before the plot; the data points are the same) and `results/sessionInfo_05_enrichment.txt` (one extra package loaded, curl).
+- *Collapse settings:* `collapsePathways` on the 468 FDR < 0.05 terms, default threshold (p < 0.05), seed 2026. The uncollapsed dot plot (`figures/05_gsea_dotplot_gobp.png`) is kept.
+- *README extras not asked for:* a table of the data files used, a cohort paragraph in Data, a References section, and a line in the CC-BY-4.0 attribution saying the data are used unchanged apart from our filtering and that the Beat AML team doesn't endorse this project. The Verhaak UP caption also gives the DN result.
+- *Fixed a wrong citation in a code comment:* `05_enrichment.R` said Verhaak et al. 2005 was in *Haematologica*; it's *Blood* 2005;106:3747-3754. All five references in README.md were checked against PubMed.
+- *`data/` re-downloaded* with `scripts/01_download.R` at the start of this session (new container); nothing in it is committed.

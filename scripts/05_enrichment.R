@@ -171,7 +171,7 @@ show_top <- function(t, n = 10) {
 cat("\nHallmark, top 10 each way by NES:\n"); show_top(gsea_tab$hallmark)
 
 # ---- 4. Positive controls: Verhaak NPM1 sets ---------------------------------
-# Verhaak et al. 2005 (Haematologica) compared NPM1-mutated with wild-type AML
+# Verhaak et al. 2005 (Blood) compared NPM1-mutated with wild-type AML
 # on microarrays. Their UP set should sit at the top of our ranking (NES > 0)
 # and their DN set at the bottom (NES < 0). If not, something is wrong upstream.
 
