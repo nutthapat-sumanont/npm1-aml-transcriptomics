@@ -963,3 +963,6 @@ This is the Arza-Apalategi et al. finding, reproduced from raw coverage in the s
 - *Short notes on gene pages* (positive controls, FTO / IFEX9, NEK10, USP44, WDR86, chrY genes, XIST) weren't asked for. Their wording is taken from this log.
 - *Overview text beyond the figure caption* (the question, the "How it was done" cards, key-number tiles) restates CLAUDE.md and this log; no new claims. I took out one sentence I'd drafted ("NPM1 is the most commonly mutated gene in adult AML") because the log doesn't say it.
 - *`scripts/run_all.R` runs 12 last.* README gets a line about the web page and a script row.
+
+**Review fix (after the session, before merge)**
+- *Lookup chart width.* The chart was drawn while its section was still hidden, so Plotly measured the box as 0 px wide and fell back to a fixed 700 px chart. On a 390 px phone screen that made the whole page scroll sideways; on desktop the chart was narrower than the table under it. `docs/assets/lookup.js` now unhides the section before drawing. If Plotly can't load, the chart box also shrinks to fit the message, so there's no empty gap above the numbers. Checked in a headless browser at 1280 px and 390 px, with and without Plotly.

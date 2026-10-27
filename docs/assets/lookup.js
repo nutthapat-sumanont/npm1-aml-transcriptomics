@@ -167,6 +167,9 @@
       '" rel="noopener">' + esc(id) + "</a>" + (biotype ? " &middot; " + esc(biotype.replace(/_/g, " ")) : "");
     document.getElementById("g-note").innerHTML = note ? '<div class="note">' + esc(note) + "</div>" : "";
 
+    // Unhide before drawing: Plotly measures the box width when it draws, and a
+    // hidden box measures 0, which makes it fall back to a fixed 700 px chart.
+    result.hidden = false;
     drawPlot(expr);
 
     var med = [0, 1, 2].map(function (k) { return expr[k * 5 + 2]; });
@@ -194,7 +197,6 @@
         "<tr><td>Rank by significance</td><td>" + rank.toLocaleString() + " of " + data.meta.de_n_genes.toLocaleString() + "</td></tr>" +
         "</tbody></table></div>";
     }
-    result.hidden = false;
   }
 
   function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
@@ -202,6 +204,7 @@
   function drawPlot(expr) {
     var el = document.getElementById("plot");
     if (typeof Plotly === "undefined") {
+      el.style.height = "auto";  // no empty chart-sized gap above the numbers
       el.innerHTML = '<p class="msg">The plotting library (Plotly, from cdn.plot.ly) didn\'t load. The numbers below still apply.</p>';
       return;
     }
