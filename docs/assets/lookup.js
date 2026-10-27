@@ -1,8 +1,10 @@
 // Gene lookup for the NPM1 AML project page.
 // Reads data/genes.json (built by scripts/12_build_site.R). Each gene row is
-// [symbol, ensembl_id, biotype, expr, de, note]:
+// [symbol, ensembl_id, biotype, expr, de, note, tcga]:
 //   expr = 3 groups x [lower whisker, q1, median, q3, upper whisker]
-//   de   = [log2FC, lfcSE, padj, rank, significant (0/1)] or null
+//   de   = Beat AML [log2FC, lfcSE, padj, rank, significant (0/1)] or null
+//   tcga = TCGA-LAML [log2FC, lfcSE, padj, rank, significant (0/1),
+//          symbol if renamed since Ensembl 75 or null] or null (not tested)
 (function () {
   "use strict";
 
@@ -151,7 +153,7 @@
   // ---- Result -----------------------------------------------------------
   function show(i, keepHash) {
     var g = data.genes[i];
-    var sym = g[0], id = g[1], biotype = g[2], expr = g[3], de = g[4], note = g[5];
+    var sym = g[0], id = g[1], biotype = g[2], expr = g[3], de = g[4], note = g[5], tcga = g[6];
     closeSuggest();
     q.value = sym;
     if (!keepHash) history.replaceState(null, "", "#gene=" + encodeURIComponent(sym));
@@ -177,26 +179,46 @@
       "Median VST: NPM1-mutated " + med[0].toFixed(1) + ", KMT2A-rearranged " + med[1].toFixed(1) +
       ", other AML " + med[2].toFixed(1) + ".";
 
-    var deEl = document.getElementById("g-de");
-    if (!de) {
-      deEl.innerHTML = '<p class="msg">No DESeq2 result: this gene passes the low-count filter across all 300 samples ' +
-        "but not across the 276 main-cohort samples used for the model.</p>";
-    } else {
-      var lfc = de[0], se = de[1], padj = de[2], rank = de[3], sig = de[4] === 1;
-      var call = sig ? (lfc > 0 ? '<span class="badge up">Higher in NPM1-mutated</span>'
-                                : '<span class="badge down">Lower in NPM1-mutated</span>')
-                     : '<span class="badge ns">Not changed by the cut-off</span>';
-      var fold = Math.pow(2, Math.abs(lfc));
-      var foldTxt = Math.abs(lfc) < 0.05 ? "about the same"
-        : fold.toFixed(fold < 10 ? 2 : 1) + "x " + (lfc > 0 ? "higher" : "lower") + " in NPM1-mutated";
-      deEl.innerHTML =
-        '<div class="table-scroll"><table class="de-table"><tbody>' +
-        "<tr><td>Call (padj &lt; 0.05 and |log2FC| &gt; 1)</td><td>" + call + "</td></tr>" +
-        "<tr><td>log2 fold change (apeglm)</td><td>" + fmtNum(lfc, 2) + " &plusmn; " + se.toFixed(2) + " (" + foldTxt + ")</td></tr>" +
-        "<tr><td>Adjusted p-value (BH)</td><td>" + fmtP(padj) + "</td></tr>" +
-        "<tr><td>Rank by significance</td><td>" + rank.toLocaleString() + " of " + data.meta.de_n_genes.toLocaleString() + "</td></tr>" +
-        "</tbody></table></div>";
-    }
+    document.getElementById("g-de").innerHTML = deTable(de, tcga);
+  }
+
+  // ---- DESeq2 results, Beat AML next to TCGA-LAML --------------------------
+  // One column per cohort. A cohort without a result gets one merged cell
+  // with the reason instead of five empty ones.
+  var DE_ROWS = ["Call", "log2FC &plusmn; SE", "Fold change", "padj (BH)", "Rank"];
+
+  function deCells(r, nGenes) {
+    var lfc = r[0], se = r[1], padj = r[2], rank = r[3], sig = r[4] === 1;
+    var call = sig ? (lfc > 0 ? '<span class="badge up">Higher</span>' : '<span class="badge down">Lower</span>')
+                   : '<span class="badge ns">Not changed</span>';
+    var fold = Math.pow(2, Math.abs(lfc));
+    var foldTxt = Math.abs(lfc) < 0.05 ? "about the same"
+      : fold.toFixed(fold < 10 ? 2 : 1) + "x " + (lfc > 0 ? "higher" : "lower");
+    return [call, fmtNum(lfc, 2) + " &plusmn; " + se.toFixed(2), foldTxt, fmtP(padj),
+            rank.toLocaleString() + " of " + nGenes.toLocaleString()];
+  }
+
+  function deTable(de, tcga) {
+    var cols = [
+      de ? deCells(de, data.meta.de_n_genes)
+         : "Not in the model: passes the low-count filter across all 300 samples, but not across the 276 main-cohort samples.",
+      tcga ? deCells(tcga, data.meta.tcga_n_genes)
+           : "Not tested in TCGA: no matching Ensembl ID in GENCODE v36, or too few reads for TCGA's low-count filter."
+    ];
+    var body = DE_ROWS.map(function (label, r) {
+      var cells = cols.map(function (c) {
+        if (typeof c !== "string") return "<td>" + c[r] + "</td>";
+        return r === 0 ? '<td class="missing" rowspan="' + DE_ROWS.length + '">' + esc(c) + "</td>" : "";
+      }).join("");
+      return '<tr><th scope="row">' + label + "</th>" + cells + "</tr>";
+    }).join("");
+    var renamed = tcga && tcga[5]
+      ? '<p class="small">In TCGA (GENCODE v36) this gene is called <b>' + esc(tcga[5]) + "</b>; matched on the Ensembl ID.</p>"
+      : "";
+    return '<table class="de-table"><thead><tr><td></td>' +
+      '<th scope="col">Beat AML 2.0<span>n = 276 (100 vs 176)</span></th>' +
+      '<th scope="col">TCGA-LAML<span>n = 111 (31 vs 80)</span></th>' +
+      "</tr></thead><tbody>" + body + "</tbody></table>" + renamed;
   }
 
   function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
