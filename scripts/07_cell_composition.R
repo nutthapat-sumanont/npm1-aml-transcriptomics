@@ -18,8 +18,14 @@
 #     NPM1-mutated samples (Session 4 split).
 #  5. Figure: figures/07_celltype_scores.png.
 #  6. How the scores relate to each other and to the positive-control genes.
+#  7. Sensitivity DESeq2 on the 270 samples with scores: main design refit,
+#     + HSC-like + Monocyte-like (the sensitivity model), and + all six scores
+#     (an upper bound only, not a result).
+#  8. Which positive controls survive (partly circular ones flagged), how many
+#     top 50 genes stay, fold-change agreement, figures/07_celltype_adjusted_lfc.png.
 #
-# Run from the repo root:  Rscript scripts/07_cell_composition.R
+# Run from the repo root:  Rscript scripts/07_cell_composition.R  (about 25 minutes,
+# almost all of it the three DESeq2 fits in section 7)
 # Needs data/ (01_download.R), results/cohort.csv (02), results/deseq2_npm1.csv
 # (04) and results/block_nek10_fto_scores.csv (05).
 

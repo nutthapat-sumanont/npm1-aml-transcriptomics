@@ -1,0 +1,5 @@
+"model","role","top50_in_top50","top50_still_sig","top50_same_direction","n_sig","n_up","n_down","sig_shared_with_main","lfc_pearson_vs_main","lfc_spearman_vs_main","lfc_pearson_vs_main_270","lfc_slope_vs_main_270","top50_dropped"
+"main","main model, 276 samples (04_deseq2.R)",50,49,50,1019,307,712,1019,1,1,0.999480160756709,NA,""
+"main_270","same samples, main design",50,49,50,1017,307,710,996,0.999480160756709,0.998600098818235,1,1,"PHKA2"
+"two_score","sensitivity model",32,49,50,952,285,667,703,0.887220594049914,0.818142255058772,0.888566148742357,0.85000264821534,"PHKA2"
+"all_six","UPPER BOUND, not a result",21,44,50,677,173,504,409,0.704589432173686,0.667378322588759,0.710550999440629,0.541606642659257,"FTO;MAN1A1;CLIP3;PHKA2;SCG2;CD1C"
