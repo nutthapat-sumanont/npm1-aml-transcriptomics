@@ -1,0 +1,4 @@
+"check","found","position"
+"forward primer inside IFEX9 exon 1 (+ strand)",TRUE,54063907
+"reverse qPCR primer inside FTO exon 9 (first 2 kb, - strand)",TRUE,54111796
+"5' RACE primer inside FTO exon 9 (first 2 kb, - strand)",TRUE,54111859

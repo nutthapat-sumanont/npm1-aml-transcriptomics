@@ -15,7 +15,8 @@ scripts <- c(
   "scripts/06b_deseq2_subgroups.R",  # sensitivity DESeq2 with NPM1-high/low
   "scripts/07_cell_composition.R",    # cell-type scores, maturity sensitivity
   "scripts/08_tcga_replication.R",   # replication in TCGA-LAML (downloads ~650 MB)
-  "scripts/09_drug_response.R"       # ex vivo drug response (AUC) by NPM1 status
+  "scripts/09_drug_response.R",      # ex vivo drug response (AUC) by NPM1 status
+  "scripts/11_fto_locus.R"           # FTO vs IFEX9 in TCGA coverage (recount3)
 )
 
 if (!file.exists("CLAUDE.md")) stop("Run this from the repo root")
