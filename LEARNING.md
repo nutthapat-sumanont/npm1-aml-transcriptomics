@@ -16,6 +16,7 @@ Each session has one number, used in this log, CLAUDE.md and the script headers.
 | 8 | 2026-10-27 | Ex vivo drug response | `09_drug_response.R` | #7 |
 | 9 | 2026-10-27 | Survival (exploratory) | `10_survival.R` | #8 |
 | 10 | 2026-10-27 | FTO vs IFEX9 (TCGA coverage) | `11_fto_locus.R` | #9 |
+| 11 | 2026-10-27 | Project web page (GitHub Pages) | `12_build_site.R` | see below |
 
 Three early commit messages carry the wrong number. They were already pushed, so they were left as they are rather than rewriting history:
 - `bb97e57` says "Session 6" but belongs to Session 7 (TCGA).
@@ -914,3 +915,51 @@ This is the Arza-Apalategi et al. finding, reproduced from raw coverage in the s
 - *Sequence check through the Ensembl REST API, not UCSC.* UCSC's API fails the TLS check through this environment's proxy, and I didn't turn verification off.
 - *Extra outputs:* `results/fto_key_feature_tests.csv`, `results/fto_ifex9_in_grch37_annotation.csv` (Ensembl 75 lookup), `figures/11_fto_key_features.png`, `figures/11_fto_junctions.png`, a README section, and recount3 and rtracklayer added to `setup/cloud_setup.sh`.
 - *Beat AML step 7* uses DESeq2 size factors over the 100 NPM1-mutated samples and a Wilcoxon test per gene, with FTO kept in the table as the reference row.
+
+## Session 11 (2026-10-27): a project web page (`docs/`, `scripts/12_build_site.R`)
+
+**What we did, step by step**
+1. **Built a static site in `docs/`**: plain HTML, CSS and JavaScript, no server, no build step. Three pages:
+   - `index.html`, the overview: the question, four key numbers, the HOXA9 / MEIS1 three-group figure, how it was done, data credit. The summary paragraph is a **yellow dashed box marked "Placeholder: summary to write"** for you.
+   - `results.html`: eight sections with ten figures (volcano, Verhaak UP, TCGA replication, cell-maturity sensitivity, the NEK10/FTO/USP44 block and shared-vs-specific plots, FTO coverage, venetoclax, survival by NPM1 x FLT3-ITD), each with a caption. Every number in the captions was checked against this log.
+   - `lookup.html`: type any gene symbol or Ensembl ID (with suggestions as you type) and see a box plot in NPM1-mutated, KMT2A-rearranged and other AML, plus the main DESeq2 result (shrunken log2FC with SE, fold change, padj, rank, call). Links are shareable (`lookup.html#gene=MEIS1`). Genes discussed in this log get a short note (positive controls, FTO locus / IFEX9, NEK10, USP44, WDR86, chrY genes, XIST).
+2. **`scripts/12_build_site.R` regenerates the data files.**
+   - Step 1 makes `results/site_gene_group_quartiles.csv`: for every gene and group, n, min, lower whisker, q1, median, q3, upper whisker, max. Same 300 samples, low-count filter and blind VST as the Session 4 three-group plot. This is the only step that needs `data/` (the counts file); once the CSV exists it's reused, unless `REBUILD_QUARTILES=1`.
+   - Step 2 writes `docs/data/genes.json` from that CSV, `results/deseq2_npm1.csv` and `results/enrichment_removed_sex_genes.csv`.
+   - Step 3 copies the ten figures from `figures/` into `docs/figures/`. Step 4 stops with an error if `docs/` is over 20 MB.
+3. **Tested in Chromium** (Playwright) at iPhone 13 size and at 1280 px: no horizontal scrolling on any page, no console errors, search by symbol, prefix, Ensembl ID and URL all work, and an unknown gene gives a clear message.
+
+**Key numbers**
+- Quartile check: HOXA9 and MEIS1 n, median, q25 and q75 match `results/three_group_summary.csv` to 1e-6 (the script stops if they don't).
+- 19,654 genes in the lookup (the low-count filter on 300 samples). All 19,398 DESeq2 genes are among them; 256 have expression but no DESeq2 result, because they pass the filter on 300 samples but not on the 276 in the model.
+- `docs/data/genes.json` is 3.0 MB (about 1 MB gzipped, which is how GitHub Pages sends it). The quartile CSV is 5.0 MB. **All of `docs/` is 7.8 MB**, well under 20 MB.
+- 27 symbols map to more than one Ensembl ID (mostly small RNAs like Y_RNA and U3); the page shows the first and says how to find the others.
+
+**What I should understand**
+- *Why quartiles and not every sample.* A box plot only needs five numbers per group, so 19,654 genes x 3 groups x 5 numbers is a small file that loads fast on a phone. It also means no per-patient values are published on the page, which is the kinder choice even though Beat AML's counts are open.
+- *Whiskers* are Tukey's: they reach the most extreme sample within 1.5 box-lengths of the box. Samples beyond that aren't drawn, because the page doesn't have them. For HOXA9 the "other AML" whisker reaches almost down to the floor, because that group really is spread from about 2 to 13.6.
+- *The KMT2A-rearranged group is for comparison only.* It's in the box plot but not in the DESeq2 model, which compares NPM1-mutated with NPM1-wild-type in the 276 main-cohort samples.
+- *Why the page needs a web server to test locally.* Browsers block `fetch()` of a local JSON file opened with `file://`. `python3 -m http.server --directory docs` gives you the same behaviour as GitHub Pages.
+
+**How to switch on GitHub Pages (once the repo is public)**
+1. Merge this session's pull request into `main` (Pages will serve the `docs/` folder of `main`).
+2. Make the repo public, if it isn't yet: on GitHub, **Settings > General**, scroll to **Danger Zone > Change repository visibility > Change to public**, and confirm. Free GitHub accounts can only use Pages on public repos.
+3. Go to **Settings > Pages** (left sidebar, under "Code and automation").
+4. Under **Build and deployment**, set **Source** to **Deploy from a branch**. Then set **Branch** to `main` and the folder to `/docs`, and click **Save**.
+5. Wait 1 to 2 minutes. The **Actions** tab shows a run called "pages build and deployment"; when it's green, the Settings > Pages screen shows the address: **https://beckyzaza.github.io/npm1-aml-transcriptomics/**.
+6. Every later push to `main` that changes `docs/` redeploys the site on its own.
+
+**Open questions**
+1. The summary paragraph on the overview is yours to write (the box in `docs/index.html`, marked with an HTML comment too). The README's Summary placeholder could use the same text.
+2. Should the page say who you are (name, HKU, contact)? I left that out; the footer only says it's a learning and portfolio project.
+3. Worth adding a TCGA column to the lookup (log2FC and padj in TCGA-LAML)? `results/tcga_deseq2_npm1.csv` has it; it would show replication gene by gene.
+
+**Deviations**
+- *Figures are copied as they are (300 dpi PNGs), not shrunk for the web.* All ten together are 4.8 MB, so `docs/` stays under 20 MB without resizing, and they stay sharp when zoomed on a phone. Pages load them lazily.
+- *`.gitignore` had `docs/` in it* (the R template's pkgdown entry). I removed that line so the site can be committed. Added an empty `docs/.nojekyll` so GitHub Pages serves the files exactly as they are.
+- *Extra committed output:* `results/site_gene_group_quartiles.csv` (5 MB), so `12_build_site.R` can rebuild the site from `results/` alone, as you asked; values rounded to 3 decimals to keep it small. `results/sessionInfo_12_build_site.txt` as usual.
+- *Only the counts file was downloaded* into `data/` (new container), by the same media.githubusercontent.com fallback URL that `01_download.R` uses (github.com was blocked here), not the full `01_download.R` run. Nothing in `data/` is committed.
+- *Plotly's "cartesian" bundle* (plotly-cartesian-2.35.2.min.js, 1.3 MB) from cdn.plot.ly instead of the full 4.6 MB build; it includes box plots, which is all the lookup draws. Only the lookup page loads it.
+- *Short notes on gene pages* (positive controls, FTO / IFEX9, NEK10, USP44, WDR86, chrY genes, XIST) weren't asked for. Their wording is taken from this log.
+- *Overview text beyond the figure caption* (the question, the "How it was done" cards, key-number tiles) restates CLAUDE.md and this log; no new claims. I took out one sentence I'd drafted ("NPM1 is the most commonly mutated gene in adult AML") because the log doesn't say it.
+- *`scripts/run_all.R` runs 12 last.* README gets a line about the web page and a script row.

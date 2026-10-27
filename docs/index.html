@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NPM1-mutated AML: overview</title>
+<meta name="description" content="Gene expression in NPM1-mutated vs NPM1-wild-type AML (Beat AML 2.0), and what it says about menin inhibitor biology.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="index.html">NPM1-mutated AML transcriptomics</a>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="index.html" aria-current="page">Overview</a></li>
+        <li><a href="results.html">Results</a></li>
+        <li><a href="lookup.html">Gene lookup</a></li>
+        <li><a href="https://github.com/beckyzaza/npm1-aml-transcriptomics">Code</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <h1>Gene expression in NPM1-mutated vs NPM1-wild-type AML</h1>
+    <p class="lede">Which genes differ between acute myeloid leukaemia with and without an NPM1 mutation, and how does that connect to menin inhibitors? Analysed with Beat AML 2.0 RNA-seq counts and checked in TCGA-LAML.</p>
+
+    <!-- PLACEHOLDER: summary paragraph, to be written by the author. -->
+    <section class="placeholder" aria-label="Summary placeholder">
+      <span class="tag">Placeholder: summary to write</span>
+      <p><em>Three to five sentences on the question, the cohort, the main result and what it means. Replace this box in <code>docs/index.html</code>.</em></p>
+    </section>
+
+    <div class="stats" aria-label="Key numbers">
+      <div class="stat"><b>276</b><span>patients in the main cohort: 100 NPM1-mutated, 176 wild-type</span></div>
+      <div class="stat"><b>19,398</b><span>genes tested with DESeq2</span></div>
+      <div class="stat"><b>1,019</b><span>genes changed (padj &lt; 0.05, |log2FC| &gt; 1): 307 up, 712 down</span></div>
+      <div class="stat"><b>0.99</b><span>ROC AUC of the Beat AML signature in TCGA-LAML</span></div>
+    </div>
+
+    <h2>The question</h2>
+    <p>This project compares gene expression between NPM1-mutated and NPM1-wild-type AML at diagnosis, then connects the result to menin inhibitor biology: menin and KMT2A keep the HOXA9 and MEIS1 genes switched on in NPM1-mutated AML, and menin inhibitors (revumenib, ziftomenib) are meant to switch them off.</p>
+
+    <figure>
+      <a class="zoom" href="figures/05_three_group_hoxa9_meis1.png" title="Open full size">
+        <img src="figures/05_three_group_hoxa9_meis1.png" width="2400" height="1500"
+             alt="Box plots of HOXA9 and MEIS1 expression in NPM1-mutated (n = 100), KMT2A-rearranged (n = 24) and other AML (n = 176). NPM1-mutated and KMT2A-rearranged sit at the same high level, other AML is lower and spread out.">
+      </a>
+      <figcaption><b>HOXA9 and MEIS1 in the two menin-dependent AML groups.</b> Expression (VST, roughly log2) in de novo AML at diagnosis, Beat AML 2.0. Median HOXA9 is 12.2 in NPM1-mutated (n = 100), 12.3 in KMT2A-rearranged (n = 24) and 9.5 in other AML (n = 176); median MEIS1 is 12.2, 12.1 and 10.1. NPM1-mutated and KMT2A-rearranged are each about 2 to 2.8 log2 units above other AML (Wilcoxon p &lt; 1e-8) and don't differ from each other (p = 0.42 and 0.40). They are different mutations, but both keep menin and KMT2A sitting on HOXA9 and MEIS1, which is why menin inhibitors work in both. Some other AML cases are HOXA9-high too, without either lesion. Triangles are the two KMT2A-rearranged cases that also carry an NPM1 mutation. The same picture holds in TCGA-LAML.</figcaption>
+    </figure>
+
+    <h2>How it was done</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Cohort</h3>
+        <p>AML only, initial diagnosis, de novo, one sample per patient (the earliest). Acute promyelocytic leukaemia and KMT2A fusions were left out of the main comparison; the 24 KMT2A-fusion cases are kept for the three-group plot. One sample was dropped in QC as a possible swap (recorded sex didn't match expression).</p>
+      </div>
+      <div class="card">
+        <h3>Model</h3>
+        <p>DESeq2 with <code>~ wave + specimen_type + sex + NPM1_status</code>, NPM1 wild-type as the reference, apeglm-shrunken fold changes. Sex is in the model because NPM1-mutated AML is more common in women (64% vs 41% here).</p>
+      </div>
+      <div class="card">
+        <h3>Checks</h3>
+        <p>Positive controls (HOXA9, HOXA10, HOXB cluster, MEIS1, PBX3 up; CD34 down) and the published Verhaak NPM1 gene sets all pass. Sensitivity models for FLT3-ITD and cell maturity, and a replication in TCGA-LAML (111 patients).</p>
+      </div>
+    </div>
+
+    <h2>Explore</h2>
+    <div class="grid">
+      <a class="card" href="results.html" style="text-decoration:none;color:inherit">
+        <h3>Results &rarr;</h3>
+        <p class="small">The key figures: differential expression, replication, a known subgroup inside NPM1-mutated AML, FTO vs IFEX9, drug response and survival.</p>
+      </a>
+      <a class="card" href="lookup.html" style="text-decoration:none;color:inherit">
+        <h3>Gene lookup &rarr;</h3>
+        <p class="small">Type any gene to see its expression in NPM1-mutated, KMT2A-rearranged and other AML, plus its DESeq2 result.</p>
+      </a>
+    </div>
+
+    <h2>Data and credit</h2>
+    <p>Data from <a href="https://github.com/biodev/beataml2.0_data">Beat AML 2.0</a>, shared under <a href="https://creativecommons.org/licenses/by/4.0/">CC-BY-4.0</a>, used unchanged apart from the filtering and analysis described here. This project is not endorsed by the Beat AML investigators. Please cite Bottomly et al., <em>Cancer Cell</em> 2022 and Tyner et al., <em>Nature</em> 2018. Replication data from TCGA-LAML (NEJM 2013) via the NCI Genomic Data Commons, cBioPortal and recount3.</p>
+    <p class="small">The full session-by-session log, with every number and decision, is in <a href="https://github.com/beckyzaza/npm1-aml-transcriptomics/blob/main/LEARNING.md">LEARNING.md</a>.</p>
+  </div>
+</main>
+
+<footer class="site">
+  <div class="wrap">A learning and portfolio project. Code: <a href="https://github.com/beckyzaza/npm1-aml-transcriptomics">github.com/beckyzaza/npm1-aml-transcriptomics</a>.</div>
+</footer>
+</body>
+</html>
