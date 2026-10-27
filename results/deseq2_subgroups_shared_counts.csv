@@ -1,8 +1,8 @@
 "view","class","down","up","total"
-"fold change","mostly high",225,163,388
-"fold change","mostly low",72,46,118
-"fold change","shared",415,98,513
-"significance","both",647,153,800
-"significance","high only",26,116,142
-"significance","low only",32,38,70
-"significance","neither",7,0,7
+"fold change","mostly high",220,161,381
+"fold change","mostly low",72,45,117
+"fold change","shared",420,101,521
+"significance","both",650,165,815
+"significance","high only",15,104,119
+"significance","low only",39,38,77
+"significance","neither",8,0,8

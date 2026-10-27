@@ -1,0 +1,2 @@
+"feature","n_low","of_low","n_high","of_high","low_pct","high_pct","odds_ratio","or_ci_low","or_ci_high","fisher_p","note"
+"TET2, IDH1 or IDH2",23,61,30,36,37.7,83.3,8.06861834509314,2.7619579476953,27.4484238493182,1.64846901218308e-05,"Consistency check, not independent: hypothesis formed partly from Beat AML"

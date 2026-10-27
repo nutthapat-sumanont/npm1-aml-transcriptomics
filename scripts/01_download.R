@@ -19,7 +19,10 @@ files <- c(
   norm_expression = "beataml_waves1to4_norm_exp_dbgap.txt",
   # Malignant cell-type scores (Bottomly et al. 2022, van Galen et al. 2019
   # signatures), added in Session 6 for scripts/07_cell_composition.R
-  celltype_scores = "beataml2_manuscript_vg_cts.xlsx"
+  celltype_scores = "beataml2_manuscript_vg_cts.xlsx",
+  # Drug-to-family table (which inhibitor class each drug belongs to), added
+  # in Session 8 for scripts/09_drug_response.R
+  drug_families   = "beataml_drug_families.xlsx"
 )
 
 # github.com/raw redirects to the real LFS file. media.githubusercontent.com

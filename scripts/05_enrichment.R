@@ -13,8 +13,9 @@
 #      and redraw the GO BP dot plot.
 #  5. Three-group plot of HOXA9 and MEIS1 (VST): NPM1-mutated,
 #     KMT2A-rearranged, other AML.
-#  6. Does the NEK10 / FTO / USP44 / WDR86 block mark a subgroup within
-#     NPM1-mutated samples? Report only, no filtering.
+#  6. Does the NEK10 / FTO / USP44 block mark a subgroup within NPM1-mutated
+#     samples? Report only, no filtering. (Session 8: split on the three-gene
+#     score; WDR86 dropped from the definition.)
 #
 # Run from the repo root:  Rscript scripts/05_enrichment.R   (about 5 minutes)
 # Needs results/deseq2_npm1.csv (04_deseq2.R), results/cohort.csv (02_cohort.R)
@@ -346,13 +347,24 @@ p <- ggplot(three, aes(group3, vst, fill = group3)) +
   theme_bw(base_size = 11) + theme(legend.position = "bottom")
 save_fig(p, "05_three_group_hoxa9_meis1.png", w = 8, h = 5)
 
-# ---- 8. NEK10 / FTO / USP44 / WDR86 block within NPM1-mutated ----------------
-# All four are among the top "up" genes. If they rise and fall together inside
-# the NPM1-mutated group, they might mark a subgroup. Block score = mean z-score
-# of the four genes across the 100 NPM1-mutated samples. Then we ask whether
-# the score lines up with anything in cohort.csv. Report only.
+# ---- 8. NEK10 / FTO / USP44 block within NPM1-mutated ------------------------
+# All four of NEK10, FTO, USP44 and WDR86 are among the top "up" genes. If they
+# rise and fall together inside the NPM1-mutated group, they might mark a
+# subgroup. Then we ask whether the score lines up with anything in cohort.csv.
+# Report only.
+#
+# Definition (changed in Session 8): the group is defined by NEK10, FTO and
+# USP44 only. Session 4 used all four genes, but WDR86 tracks FLT3-ITD rather
+# than the other three (Beat AML here, and TCGA in Session 7), so it is dropped
+# from the definition. core_score = mean z-score of the three genes across the
+# 100 NPM1-mutated samples; block_group = two-cluster k-means on core_score.
+# The Session 4 four-gene score and split are kept as score_4gene and
+# group_4gene, only to report how many samples change group. WDR86 is still
+# plotted and tested against FLT3-ITD so the reason for dropping it stays
+# visible.
 
 block_genes <- c("NEK10", "FTO", "USP44", "WDR86")
+core <- c("NEK10", "FTO", "USP44")
 mut <- cohort %>% filter(group == "NPM1_mut") %>%
   mutate(specimen_type = ifelse(specimenType == "Bone Marrow Aspirate", "BM", "Blood"))
 bm <- t(sapply(block_genes, function(g) gene_vst(g)[mut$dbgap_rnaseq_sample]))
@@ -365,19 +377,41 @@ cor_wt <- cor(sapply(block_genes, function(g)
   method = "spearman")
 cat("Same in NPM1-wild-type (n = 176):\n"); print(round(cor_wt, 2))
 
-mut$block_score <- colMeans(t(scale(t(bm))))
-# Is there a natural split? Two-cluster k-means on the score (seeded).
-set.seed(2026)
-km <- kmeans(mut$block_score, centers = 2, nstart = 25)
-hi <- which.max(km$centers)
-mut$block_group <- factor(ifelse(km$cluster == hi, "high", "low"), levels = c("low", "high"))
-cat("\nk-means split of the block score:", paste(names(table(mut$block_group)),
-    table(mut$block_group), collapse = ", "), "\n")
+# Two-cluster k-means on a score (seeded), labelled so "high" is the cluster
+# with the higher centre.
+kmeans_split <- function(score) {
+  set.seed(2026)
+  km <- kmeans(score, centers = 2, nstart = 25)
+  factor(ifelse(km$cluster == which.max(km$centers), "high", "low"),
+         levels = c("low", "high"))
+}
 # Bimodality coefficient (> 0.555 hints at two peaks; a rough guide only)
-sk <- mean(scale(mut$block_score)^3); ku <- mean(scale(mut$block_score)^4) - 3
-n <- nrow(mut)
-bc <- (sk^2 + 1) / (ku + 3 * (n - 1)^2 / ((n - 2) * (n - 3)))
-cat("Bimodality coefficient:", round(bc, 3), "\n")
+bimodality <- function(score) {
+  sk <- mean(scale(score)^3); ku <- mean(scale(score)^4) - 3
+  n <- length(score)
+  (sk^2 + 1) / (ku + 3 * (n - 1)^2 / ((n - 2) * (n - 3)))
+}
+
+mut$core_score  <- colMeans(t(scale(t(bm[core, ]))))
+mut$block_group <- kmeans_split(mut$core_score)
+mut$score_4gene <- colMeans(t(scale(t(bm))))
+mut$group_4gene <- kmeans_split(mut$score_4gene)
+cat("\nk-means split of the three-gene core score (the definition):",
+    paste(names(table(mut$block_group)), table(mut$block_group), collapse = ", "), "\n")
+cat("Session 4 split of the four-gene score, for comparison:",
+    paste(names(table(mut$group_4gene)), table(mut$group_4gene), collapse = ", "), "\n")
+cat("Bimodality coefficient: three-gene", round(bimodality(mut$core_score), 3),
+    "| four-gene", round(bimodality(mut$score_4gene), 3), "\n")
+
+# How many samples change group between the two definitions?
+switch_tab <- table(four_gene = mut$group_4gene, three_gene = mut$block_group)
+cat("\nFour-gene (rows) vs three-gene (columns) split:\n"); print(switch_tab)
+moved <- mut %>% filter(group_4gene != block_group) %>%
+  transmute(dbgap_rnaseq_sample, FLT3_ITD, group_4gene, block_group,
+            score_4gene, core_score)
+cat(nrow(moved), "of", nrow(mut), "samples change group\n"); print(moved, row.names = FALSE)
+moved$WDR86 <- bm["WDR86", moved$dbgap_rnaseq_sample]
+write.csv(moved, "results/block_split_changes.csv", row.names = FALSE)
 
 # Score vs each cohort variable. Categorical: Kruskal-Wallis on the score and
 # Fisher's test on the high/low split. Age: Spearman correlation.
@@ -386,31 +420,29 @@ cat_vars <- c("FLT3_ITD", "consensus_sex", "specimen_type", "cohort",
 assoc <- do.call(rbind, lapply(cat_vars, function(v) {
   x <- factor(mut[[v]])
   ok <- !is.na(x)
-  med <- tapply(mut$block_score[ok], x[ok], median)
+  med <- tapply(mut$core_score[ok], x[ok], median)
   data.frame(variable = v, test = "Kruskal-Wallis (score); Fisher (high/low)",
              levels = paste(sprintf("%s: n=%d, median %.2f", names(med),
                                     as.integer(table(x[ok])), med), collapse = " | "),
-             p_score = kruskal.test(mut$block_score[ok], x[ok])$p.value,
+             p_score = kruskal.test(mut$core_score[ok], x[ok])$p.value,
              p_split = fisher.test(table(x[ok], mut$block_group[ok]),
                                    simulate.p.value = nlevels(droplevels(x[ok])) > 2,
                                    B = 1e4)$p.value)
 }))
-ct <- cor.test(mut$block_score, mut$ageAtDiagnosis, method = "spearman", exact = FALSE)
+ct <- cor.test(mut$core_score, mut$ageAtDiagnosis, method = "spearman", exact = FALSE)
 assoc <- rbind(assoc, data.frame(
   variable = "ageAtDiagnosis", test = "Spearman correlation",
   levels = sprintf("rho = %.2f", ct$estimate), p_score = ct$p.value,
   p_split = wilcox.test(ageAtDiagnosis ~ block_group, data = mut)$p.value))
 write.csv(assoc, "results/block_nek10_fto_associations.csv", row.names = FALSE)
-cat("\nBlock score vs cohort variables (NPM1-mutated only):\n")
+cat("\nCore score vs cohort variables (NPM1-mutated only):\n")
 print(assoc[, c("variable", "p_score", "p_split")], row.names = FALSE)
 cat("\nFLT3-ITD vs block group:\n"); print(table(FLT3_ITD = mut$FLT3_ITD, block = mut$block_group))
 
-# WDR86 correlates only weakly with the other three, so also test each gene on
-# its own and a three-gene core score (NEK10, FTO, USP44) against FLT3-ITD.
-core <- c("NEK10", "FTO", "USP44")
-mut$core_score <- colMeans(t(scale(t(bm[core, ]))))
+# Each gene on its own, and both scores, against FLT3-ITD. This is where
+# WDR86 stands out.
 flt3_pos <- mut$FLT3_ITD == "positive"
-per_gene <- do.call(rbind, lapply(c(block_genes, "core_score", "block_score"), function(g) {
+per_gene <- do.call(rbind, lapply(c(block_genes, "core_score", "score_4gene"), function(g) {
   v <- if (g %in% block_genes) bm[g, ] else mut[[g]]
   data.frame(feature = g,
              median_FLT3_ITD_neg = median(v[!flt3_pos]),
@@ -423,21 +455,24 @@ print(per_gene, row.names = FALSE, digits = 3)
 
 write.csv(cbind(mut[, c("dbgap_rnaseq_sample", "FLT3_ITD", "consensus_sex",
                         "specimen_type", "cohort", "ELN2017", "ageAtDiagnosis",
-                        "block_score", "core_score", "block_group")], t(bm)),
+                        "core_score", "block_group", "score_4gene", "group_4gene")],
+                t(bm)),
           "results/block_nek10_fto_scores.csv", row.names = FALSE)
 
 long <- data.frame(sample = rep(mut$dbgap_rnaseq_sample, each = 4),
                    gene = factor(rep(block_genes, nrow(mut)), levels = block_genes),
                    vst = as.vector(bm),
-                   FLT3_ITD = rep(mut$FLT3_ITD, each = 4),
-                   score = rep(mut$block_score, each = 4))
-long$sample <- factor(long$sample, levels = mut$dbgap_rnaseq_sample[order(mut$block_score)])
+                   FLT3_ITD = rep(mut$FLT3_ITD, each = 4))
+long$sample <- factor(long$sample, levels = mut$dbgap_rnaseq_sample[order(mut$core_score)])
+n_hi <- sum(mut$block_group == "high")
 p <- ggplot(long, aes(sample, vst, colour = FLT3_ITD)) +
   geom_point(size = 1) +
+  geom_vline(xintercept = nrow(mut) - n_hi + 0.5, linetype = "dashed", colour = "grey40") +
   facet_wrap(~ gene, ncol = 1, scales = "free_y") +
   scale_colour_manual(values = c(negative = "grey55", positive = "#CC79A7")) +
-  labs(title = "NEK10 / FTO / USP44 / WDR86 within NPM1-mutated AML",
-       subtitle = "Samples ordered by block score (mean z-score of the four genes)",
+  labs(title = "NEK10 / FTO / USP44 within NPM1-mutated AML (WDR86 for comparison)",
+       subtitle = sprintf(paste0("Samples ordered by the three-gene core score; dashed line = ",
+                                 "k-means split (%d low, %d high)"), nrow(mut) - n_hi, n_hi),
        x = "NPM1-mutated samples (n = 100)", y = "VST") +
   theme_bw(base_size = 10) +
   theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())

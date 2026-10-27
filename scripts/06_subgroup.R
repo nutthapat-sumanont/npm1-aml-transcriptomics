@@ -16,6 +16,12 @@
 #        genes and ask whether our high group lines up with "primitive".
 #  1c. Which annotated genes sit inside FTO in our gene annotation (Ensembl 75),
 #      to show that gene-level counts can't separate FTO from IFEX9.
+#  1d. (Session 8) TET2, IDH1 or IDH2, high vs low. A consistency check, not an
+#      independent test: the grouping came from Session 7 (TCGA) after looking
+#      at the data, and partly from Beat AML itself (Session 5).
+#
+# Session 8: the high/low split is now k-means on the three-gene NEK10/FTO/USP44
+# score (WDR86 dropped), from the rerun of 05_enrichment.R.
 #
 # Run from the repo root:  Rscript scripts/06_subgroup.R   (about 2 minutes)
 # Needs results/cohort.csv (02), results/block_nek10_fto_scores.csv (05) and
@@ -42,13 +48,13 @@ save_fig <- function(p, file, w = 7, h = 5) {
   cat("Saved figures/", file, "\n", sep = "")
 }
 
-# The high/low split comes from Session 4 (k-means on the block score), so the
-# groups here are exactly the ones described in LEARNING.md.
+# The high/low split comes from 05_enrichment.R (k-means on the three-gene
+# NEK10/FTO/USP44 core score since Session 8).
 block <- read.csv("results/block_nek10_fto_scores.csv")
 cohort <- read.csv("results/cohort.csv")
 mut <- cohort %>% filter(main_cohort, group == "NPM1_mut") %>%
-  inner_join(block[, c("dbgap_rnaseq_sample", "block_score", "core_score",
-                       "block_group")], by = "dbgap_rnaseq_sample") %>%
+  inner_join(block[, c("dbgap_rnaseq_sample", "core_score", "block_group")],
+             by = "dbgap_rnaseq_sample") %>%
   mutate(block_group = factor(block_group, levels = c("low", "high")))
 stopifnot(nrow(mut) == 100)
 cat("NPM1-mutated samples:", nrow(mut), "\n"); print(table(mut$block_group))
@@ -136,6 +142,31 @@ triple <- do.call(rbind, lapply(names(combos), function(nm) {
 }))
 write.csv(triple, "results/subgroup_triple_mutation.csv", row.names = FALSE)
 print(triple, row.names = FALSE, digits = 3)
+
+# ---- 1d. TET2, IDH1 or IDH2 (Session 8) --------------------------------------
+# Mutant IDH1 and IDH2 make 2-hydroxyglutarate, which blocks TET2, so the three
+# share one pathway. In Session 7 this grouping stood out in TCGA (all 6
+# three-gene-high samples). It is NOT an independent test here: the idea came
+# partly from Beat AML (TET2 and IDH2 were higher in the high group in
+# Session 5) and was formed after looking at TCGA. One pre-stated test, so no
+# multiple-testing correction; read it as "is Beat AML consistent with it?".
+mut$tet2_idh1_idh2 <- ifelse(has_wes, mut$mut_TET2 | mut$mut_IDH1 | mut$mut_IDH2, NA)
+tii_tab <- table(factor(mut$tet2_idh1_idh2[has_wes], c(FALSE, TRUE)),
+                 mut$block_group[has_wes])
+tii_fisher <- fisher.test(tii_tab)
+tii <- data.frame(
+  feature = "TET2, IDH1 or IDH2",
+  n_low = tii_tab["TRUE", "low"], of_low = sum(tii_tab[, "low"]),
+  n_high = tii_tab["TRUE", "high"], of_high = sum(tii_tab[, "high"]),
+  low_pct = round(100 * tii_tab["TRUE", "low"] / sum(tii_tab[, "low"]), 1),
+  high_pct = round(100 * tii_tab["TRUE", "high"] / sum(tii_tab[, "high"]), 1),
+  odds_ratio = unname(tii_fisher$estimate),
+  or_ci_low = tii_fisher$conf.int[1], or_ci_high = tii_fisher$conf.int[2],
+  fisher_p = tii_fisher$p.value,
+  note = "Consistency check, not independent: hypothesis formed partly from Beat AML")
+write.csv(tii, "results/subgroup_tet2_idh1_idh2.csv", row.names = FALSE)
+cat("\nTET2, IDH1 or IDH2 (consistency check, not an independent test):\n")
+print(tii[, 1:10], row.names = FALSE, digits = 3)
 
 # ---- 1b. Primitive vs committed markers (Mer et al. 2021) --------------------
 # Same VST as Session 4 step 5 (300 samples, blind, >= 10 reads in >= 100
@@ -244,6 +275,7 @@ print(fto_locus, row.names = FALSE, digits = 2)
 
 out <- mut %>% select(dbgap_rnaseq_sample, dbgap_dnaseq_sample, block_group,
                       core_score, FLT3_ITD, starts_with("mut_"), tet2_or_idh2,
+                      tet2_idh1_idh2,
                       triple, npm1_vaf, primitive_score, committed_score,
                       prim_minus_comm, pc_call)
 write.csv(out, "results/subgroup_per_sample.csv", row.names = FALSE)
@@ -264,7 +296,7 @@ p <- ggplot(long, aes(group, value, fill = group)) +
   scale_fill_manual(values = c(low = "grey65", high = "#D55E00"), guide = "none") +
   labs(title = "Mer et al. 2021 markers in the NEK10/FTO/USP44 groups",
        subtitle = "NPM1-mutated AML (n = 100); score = mean z-score of the markers",
-       x = "NEK10 / FTO / USP44 group (Session 4)", y = "Score") +
+       x = "NEK10 / FTO / USP44 group (three-gene split)", y = "Score") +
   theme_bw(base_size = 10)
 save_fig(p, "06_subgroup_primitive_committed.png", w = 7, h = 4.5)
 
