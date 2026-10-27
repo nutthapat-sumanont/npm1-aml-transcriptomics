@@ -1,0 +1,7 @@
+"gene_set","n","matched","pct"
+"All Beat AML genes (Ensembl 75)",63677,52312,82.2
+"  protein coding",22810,19601,85.9
+"Beat AML genes tested in DESeq2",19398,18693,96.4
+"  protein coding",13689,13441,98.2
+"Beat AML significant genes (padj < 0.05, |log2FC| > 1)",1019,992,97.4
+"Beat AML top 50 up + top 50 down",100,96,96
