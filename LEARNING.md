@@ -16,7 +16,7 @@ Each session has one number, used in this log, CLAUDE.md and the script headers.
 | 8 | 2026-10-27 | Ex vivo drug response | `09_drug_response.R` | #7 |
 | 9 | 2026-10-27 | Survival (exploratory) | `10_survival.R` | #8 |
 | 10 | 2026-10-27 | FTO vs IFEX9 (TCGA coverage) | `11_fto_locus.R` | #9 |
-| 11 | 2026-10-27 | Project web page (GitHub Pages) | `12_build_site.R` | see below |
+| 11 | 2026-10-27 | Project web page (GitHub Pages) | `12_build_site.R` | #10 |
 
 Three early commit messages carry the wrong number. They were already pushed, so they were left as they are rather than rewriting history:
 - `bb97e57` says "Session 6" but belongs to Session 7 (TCGA).
