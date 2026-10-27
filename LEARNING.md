@@ -956,7 +956,7 @@ This is the Arza-Apalategi et al. finding, reproduced from raw coverage in the s
 
 **Deviations**
 - *Figures are copied as they are (300 dpi PNGs), not shrunk for the web.* All ten together are 4.8 MB, so `docs/` stays under 20 MB without resizing, and they stay sharp when zoomed on a phone. Pages load them lazily.
-- *`.gitignore` had `docs/` in it* (the R template's pkgdown entry). I removed that line so the site can be committed. Added an empty `docs/.nojekyll` so GitHub Pages serves the files exactly as they are.
+- *`.gitignore` had `docs/` in it* (the R template's pkgdown entry). I removed that line so the site can be committed, and changed the raw-data rule from `data/` to `/data/`, because `data/` also matched `docs/data/` and kept `genes.json` out of the first commit. Added an empty `docs/.nojekyll` so GitHub Pages serves the files exactly as they are.
 - *Extra committed output:* `results/site_gene_group_quartiles.csv` (5 MB), so `12_build_site.R` can rebuild the site from `results/` alone, as you asked; values rounded to 3 decimals to keep it small. `results/sessionInfo_12_build_site.txt` as usual.
 - *Only the counts file was downloaded* into `data/` (new container), by the same media.githubusercontent.com fallback URL that `01_download.R` uses (github.com was blocked here), not the full `01_download.R` run. Nothing in `data/` is committed.
 - *Plotly's "cartesian" bundle* (plotly-cartesian-2.35.2.min.js, 1.3 MB) from cdn.plot.ly instead of the full 4.6 MB build; it includes box plots, which is all the lookup draws. Only the lookup page loads it.
