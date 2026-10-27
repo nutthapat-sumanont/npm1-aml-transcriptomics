@@ -349,3 +349,92 @@ Report only. Nothing filtered, DESeq2 model untouched. The high/low split is the
 - *README extras not asked for:* a table of the data files used, a cohort paragraph in Data, a References section, and a line in the CC-BY-4.0 attribution saying the data are used unchanged apart from our filtering and that the Beat AML team doesn't endorse this project. The Verhaak UP caption also gives the DN result.
 - *Fixed a wrong citation in a code comment:* `05_enrichment.R` said Verhaak et al. 2005 was in *Haematologica*; it's *Blood* 2005;106:3747-3754. All five references in README.md were checked against PubMed.
 - *`data/` re-downloaded* with `scripts/01_download.R` at the start of this session (new container); nothing in it is committed.
+
+## Session 6 (2026-10-27): how much of the NPM1 signal is cell maturity? (`scripts/07_cell_composition.R`)
+
+**Headline (sensitivity model, + HSC-like + Monocyte-like):** all five core positive controls survive at 97 to 117% of their size (MEIS1 is partly circular, see below), 49 of the top 50 genes stay significant (32 stay in the top 50), and fold changes correlate at 0.89 with the main model. Cell maturity explains only a small part of the NPM1 signal. The all-six model is an upper bound, not a result.
+
+**What we did, step by step**
+1. **Added `beataml2_manuscript_vg_cts.xlsx` to `scripts/01_download.R`.** This file is a normal git file in the Beat AML repo, not a Git LFS file, so the LFS media URL gives a 404. Added `raw.githubusercontent.com` as a third fallback URL. All 7 files download and none is an LFS pointer.
+2. **Read how the scores were made** (Bottomly et al. 2022, STAR Methods, "Cell-type Scores") and fetched the gene lists (van Galen et al. 2019, Table S3), saved as `results/van_galen_top30_genes.csv`.
+3. **Compared the six scores** between NPM1-mutated and wild-type, and between NEK10/FTO/USP44-high and -low NPM1-mutated samples. Figure `figures/07_celltype_scores.png`.
+4. **Sensitivity DESeq2 with cell-type scores** (approved scores: HSC-like + Monocyte-like; plus all six as an upper bound), all on the same 270 samples, with the main design refit on those 270 for a fair comparison. Figure `figures/07_celltype_adjusted_lfc.png`.
+
+**What the scores are**
+- van Galen et al. sequenced single cells from AML bone marrow and trained a classifier that labels each malignant cell as one of six types along the normal blood hierarchy: **HSC-like** (stem cell), **Progenitor-like**, **GMP-like** (granulocyte-monocyte progenitor), **Promono-like** (promonocyte), **Monocyte-like** and **cDC-like** (conventional dendritic cell). For each type they listed the top 30 marker genes.
+- Bottomly et al. turned each 30-gene list into one number per bulk sample: centre and scale each gene, separately for bone marrow and for blood samples, then take the first principal component of the 30 genes (like a WGCNA eigengene), flipped so that higher = higher average expression of the markers. Waves 1+2 were scored first and Waves 3+4 were projected onto the same PCs.
+- So a score means "how much does this sample look like cell type X, compared with other Beat AML samples of the same specimen type". It is **not** a percentage of cells, and scores sit around 0 (roughly -10 to +9).
+- Signature genes worth knowing: **MEIS1 is one of the 30 HSC-like genes** (and so is KMT2A). The cDC-like list is mostly HLA class II genes (HLA-DRA, HLA-DRB1, HLA-DQ/DP). The GMP-like list contains **TRH (our rank 2 gene) and POU4F1 (rank 29)**. HOXA9, HOXA10, PBX3 and CD34 are not in any list.
+
+**Key numbers**
+- File: 560 samples x 6 scores, exactly the samples with `manuscript_rnaseq = "yes"` in the clinical file.
+- **270 of 276 main-cohort samples have scores: 97 of 100 NPM1-mutated, 173 of 176 wild-type** (38 of 39 high, 59 of 61 low). The 6 without: 5 are the wave "Both" samples (Bottomly scored none of those) and BA2644R (patient 2280; Bottomly used that patient's blood sample BA2011R, we kept the bone marrow one).
+- **NPM1-mutated vs wild-type** (Glass's delta = mean difference in wild-type SDs; BH across six):
+
+| Score | Median wt | Median mut | Glass d | padj |
+|---|---|---|---|---|
+| HSC-like | 0.36 | -0.69 | -0.75 | 4e-07 |
+| Progenitor-like | 0.35 | 1.42 | +0.06 | 0.13 |
+| GMP-like | 0.19 | -0.53 | -0.24 | 0.017 |
+| Promono-like | -0.23 | 1.33 | +0.54 | 7e-05 |
+| Monocyte-like | 1.17 | 0.45 | -0.02 | 0.70 |
+| cDC-like | 0.88 | -1.60 | -0.87 | 1e-05 |
+
+- **NPM1-high vs NPM1-low:** high has more Progenitor-like (d +0.66, padj 0.004) and much less Monocyte-like (d -1.22, padj 8e-07) and cDC-like (d -1.84, padj 2e-10); Promono-like lower (padj 0.015). HSC-like and GMP-like don't differ.
+- The six scores are correlated (Progenitor vs Monocyte -0.80; GMP vs Promono +0.62); one PC explains 52% of their variance.
+- **The six scores together predict NPM1 status with AUC 0.93** (logistic regression, in-sample). One at a time: 0.51 to 0.70. HSC-like + Monocyte-like: 0.75. GMP-like + Promono-like: 0.80.
+
+**The sensitivity DESeq2 (steps 3 and 4)**
+
+Three fits, all on the same 270 samples and the same 19,398 genes. Wave has two levels here because no wave "Both" sample has scores. Scores scaled to SD 1.
+- `main_270`: the main design, `~ wave + specimen_type + sex + NPM1_status`. Shows what changes just from losing 6 samples (almost nothing: fold changes correlate 0.999 with the main model, 1,017 vs 1,019 significant genes).
+- **`two_score`, the sensitivity model:** `~ wave + specimen_type + sex + HSC_like + Monocyte_like + NPM1_status`.
+- `all_six`: all six scores. **This is an upper bound, not a result.** The six scores predict NPM1 status with AUC 0.93, so this model regresses out a lot of NPM1 biology along with cell maturity. It tells us the most that "cell type" could possibly explain, nothing more.
+
+**Key numbers, sensitivity model (HSC-like + Monocyte-like)**
+- **All five core positive controls survive** (padj < 0.05, expected direction), with almost no change in size. % = adjusted log2FC as a share of the log2FC from the main design on the same 270.
+
+| Gene | Main (276) | Main design, 270 | **Two-score model** | % kept | Partly circular? |
+|---|---|---|---|---|---|
+| HOXA9 | +1.60 | +1.57 | **+1.66** (padj 3e-07) | 105% | no |
+| HOXA10 | +1.51 | +1.47 | **+1.46** (5e-07) | 99% | no |
+| MEIS1 | +1.60 | +1.62 | **+1.89** (6e-14) | 117% | **yes, MEIS1 is an HSC-like signature gene** |
+| PBX3 | +1.91 | +1.90 | **+1.84** (2e-32) | 97% | no |
+| CD34 | -4.00 | -4.02 | **-3.91** (2e-45) | 97% | no |
+
+  All 8 HOXB genes that pass the low-count filter also survive. Of all the positive controls (HOXA9, HOXA10, HOXB cluster, MEIS1, PBX3, CD34), **MEIS1 is the only one inside a van Galen signature**, so it's the only one flagged as partly circular.
+- **Top 50:** 49 of the main-model top 50 are still significant (padj < 0.05 and |log2FC| > 1), and all 50 go the same direction. The one that isn't, PHKA2, wasn't significant in the main model either (it just misses the fold-change cut). **32 of 50 stay in the top 50**; the rest move down the ranking but stay significant. Biggest movers: CLIP3 (rank 35 to 1,644), FGD5, CLEC9A, LRP6.
+- **Fold changes correlate at 0.89** with the main model (Pearson; Spearman 0.82), and across the 1,019 main-model genes the adjusted fold change is on average **0.85x** the main-design one (slope through zero).
+- 952 genes significant (285 up, 667 down), 703 shared with the main model's 1,019. Of the 316 that drop out, 252 still have padj < 0.05 but fall just below the 2-fold cut, so most aren't lost, just a bit smaller.
+- NEK10 shrinks from +5.1 to +3.8 and FTO from +2.5 to +1.9; USP44 doesn't change (+3.9 to +3.8). All stay highly significant.
+
+**Upper bound only (all six scores), not a result**
+- The five core controls still all survive, but shrink: HOXA9 to 58% of its main-design size, HOXA10 52%, PBX3 82%, **CD34 70%** (-4.02 to -2.80). MEIS1 stays at 100% (partly circular: it's in the HSC-like score). TRH and POU4F1 are partly circular here too (both GMP-like genes).
+- 44 of 50 top genes still significant (lost: FTO, MAN1A1, CLIP3, PHKA2, SCG2, CD1C); 21 of 50 stay in the top 50. Fold-change correlation 0.71, average fold change 0.54x. 677 significant genes.
+- Read this as: even if we let cell type take everything it possibly could, including real NPM1 biology, the HOX/MEIS1/PBX3-up and CD34-down core is still there.
+
+**What I should understand**
+- *Bottom line: cell maturity explains only a small part of the NPM1 signal.* Adjusting for where a sample sits on the stem-to-monocyte axis keeps every positive control at roughly full size and keeps 49 of the top 50 genes significant. Fold changes shrink by about 15% on average. Cell maturity is a real influence, but not what drives the result.
+- *NPM1-mutated AML looks less stem-like and more promonocyte-like*, with low cDC-like (HLA class II) signal. That matches what's known: NPM1-mutated AML is often CD34-negative and HLA-DR-low with monocytic features, and Bottomly et al. themselves report NPM1 enriched for Promono-like. Good sanity check.
+- *The primitive-like (high) group isn't "more HSC-like".* It is Progenitor-like and lacks the mature monocyte/cDC signal. Committed-like (low) samples are the monocytic ones. So "primitive vs committed" in Mer et al. is mostly a progenitor-vs-monocytic split inside NPM1-mutated AML.
+- *Why adjusting for cell type can also remove real NPM1 biology (CD34 is the clearest case).* Adjusting for a variable only makes sense if it's a confounder: something that affects both NPM1 status and gene expression from outside. Cell maturity isn't like that. The NPM1 mutation itself pushes the leukaemia towards a CD34-negative, more mature-looking state while keeping the HOX program on. So maturity is partly a **consequence** of NPM1 (a *mediator*). If you adjust for a mediator, you subtract the part of the NPM1 effect that works through it, and call what's left "the NPM1 effect". For CD34, low expression *is* the NPM1 phenotype: in the upper-bound model it shrinks from -4.0 to -2.8, and some of that 30% loss is very likely real NPM1 biology, not a correction. On top of that, the scores are built from the same RNA-seq, so they're themselves expression outcomes; a score that contains a gene adjusts that gene for itself (MEIS1 here, TRH and POU4F1 in the all-six model).
+- *Why MEIS1 went up (+1.62 to +1.89) after adjusting.* MEIS1 is one of the 30 genes behind the HSC-like score, and NPM1-mutated samples have lower HSC-like scores. The model "corrects" for that lower score and so makes the NPM1 effect on MEIS1 look bigger. Because MEIS1 helps build the score, this number is partly circular and shouldn't be read as evidence either way. HOXA9 and PBX3, which aren't in any signature, are the cleaner evidence.
+- *Why the all-six model is only an upper bound.* With AUC 0.93, the six scores are almost a stand-in for NPM1 status, so most of what NPM1 does to expression can be soaked up by them. Whatever survives that model is very robust; whatever doesn't could still be real NPM1 biology.
+- *Why AUC matters.* If the scores together almost tell you who is NPM1-mutated, putting them all in the model leaves little NPM1 variation for DESeq2 to work with. That's why we picked two scores (AUC 0.75) for the actual sensitivity model.
+
+**Open questions**
+1. The two-score model is a sensitivity check; the main model stays as is. Should the README's Limitations section now say that cell maturity was checked (and how), rather than listing it as untested?
+2. CLIP3 drops from rank 35 to 1,644 with only two scores added, and FGD5 and CLEC9A also fall. Worth a look at what they are (CLEC9A is a dendritic-cell gene, so it probably tracks the cDC/monocyte axis rather than NPM1).
+3. A proper deconvolution (CIBERSORTx-style cell proportions, including non-leukaemic cells like T cells) would be a different and complementary way to ask the same question. The scores only describe the malignant hierarchy.
+4. The 6 samples without scores (5 wave "Both", BA2644R) could be scored by projecting them onto Bottomly's PCs, but that needs the PC rotations, which aren't in the public files.
+
+**Deviations**
+- *Extra download in `07_cell_composition.R`*: van Galen et al. 2019 Table S3 (from the Cell supplementary file URL) is downloaded once to `data/` (not committed); the 180 genes are saved to `results/van_galen_top30_genes.csv`. You asked only for the Bottomly file; the gene lists were needed to check which positive controls sit inside a score. GMP-like uses the "tumor-derived, combined" column because Table S3 says "see combined signature" for the per-cell-type GMP-like column. 162 of the 180 symbols match our 2014 gene symbols; none of the 18 non-matching ones is a positive control.
+- *`01_download.R` got a third fallback URL* (raw.githubusercontent.com), because the cell-type file isn't stored in Git LFS and the LFS media URL gives a 404 for it.
+- *Sensitivity models use 270 samples, not 276*, and wave has two levels instead of three (no wave "Both" sample has scores). That's why there is an extra `main_270` fit, as agreed.
+- *Same 19,398 genes as the main model* (the gene list is taken from `results/deseq2_npm1.csv`) rather than re-running the low-count filter on 270 samples, so every gene compares one to one.
+- *"Survives"* = padj < 0.05 in the expected direction (the Session 3 rule). *"Still significant"* for the top 50 = padj < 0.05 and |log2FC| > 1.
+- *Extra checks not asked for*: Glass's delta effect sizes (the measure Bottomly et al. used), score-vs-score correlations, score-vs-gene correlations and R squared (`results/celltype_score_gene_*.csv`), the AUC table (`results/celltype_score_predict_npm1.csv`), a fold-change slope, and the HOXB cluster in the controls table.
+- *Extra outputs*: `results/celltype_score_coverage.csv`, `celltype_score_tests.csv`, `celltype_score_correlations.csv`, `celltype_signature_overlap.csv`, `deseq2_celltype_adjusted.csv`, `deseq2_celltype_controls.csv`, `deseq2_celltype_summary.csv`, `sessionInfo_07_cell_composition.txt`, and a second figure, `figures/07_celltype_adjusted_lfc.png`.
+- *`scripts/run_all.R`* now includes 07. Still not test-run from a clean checkout.
+- *`data/` re-downloaded* with `scripts/01_download.R` (new container); nothing in it is committed.
