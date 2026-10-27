@@ -4,6 +4,7 @@
 Compare gene expression between NPM1-mutated and NPM1-wild-type AML using Beat AML 2.0 raw counts, then connect the result to menin inhibitor biology. This is a learning and portfolio project. I'm a first-year HKU BSc student with basic R and Python.
 
 ## How to work with me
+- Use the session number stated in the prompt, exactly, in LEARNING.md, CLAUDE.md, script headers, commit messages and pull request titles. Never work it out from LEARNING.md, because sessions sometimes run at the same time. If the prompt gives no number, ask. Add each new session to the Session map at the top of LEARNING.md.
 - Before each analysis step, explain in plain English what it does and why it's done this way.
 - Stop and ask me before any scientific decision: sample filters, thresholds, the DESeq2 design formula. Commit and push before you stop to ask, because idle sessions can shut down.
 - End every session by adding an entry to LEARNING.md: what we did, key numbers, what I should understand, open questions.

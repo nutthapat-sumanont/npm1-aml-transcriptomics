@@ -1,5 +1,5 @@
 # 11_fto_locus.R
-# Session 9: is the "FTO-high" signal in NPM1-mutated AML FTO itself, or a
+# Session 10: is the "FTO-high" signal in NPM1-mutated AML FTO itself, or a
 # hidden transcript inside the FTO gene (IFEX9, Arza-Apalategi et al.,
 # Leukemia 2023)? Beat AML only gives one count per gene, so we look at read
 # coverage along the FTO locus in TCGA-LAML, re-processed by recount3.

@@ -1,5 +1,26 @@
 # Learning log
 
+## Session map
+
+Each session has one number, used in this log, CLAUDE.md and the script headers. Sessions 6 and 7, and 9 and 10, ran at the same time.
+
+| Session | Date | Topic | Script | Pull request |
+|---|---|---|---|---|
+| 1 | 2026-10-26 | Setup, download, cohort | `01_download.R`, `02_cohort.R` | #1 |
+| 2 | 2026-10-26 | QC of the counts | `03_qc.R` | #2 |
+| 3 | 2026-10-26 | Differential expression | `04_deseq2.R` | #2 |
+| 4 | 2026-10-26 | Gene-set enrichment, three-group plot | `05_enrichment.R` | #3 |
+| 5 | 2026-10-26 | Subgroup vs published NPM1 subtypes | `06_subgroup.R`, `06b_deseq2_subgroups.R` | #4 |
+| 6 | 2026-10-27 | Cell maturity (cell-type scores) | `07_cell_composition.R` | #5 |
+| 7 | 2026-10-27 | Replication in TCGA-LAML | `08_tcga_replication.R` | #6 |
+| 8 | 2026-10-27 | Ex vivo drug response | `09_drug_response.R` | #7 |
+| 9 | 2026-10-27 | Survival (exploratory) | `10_survival.R` | #8 |
+| 10 | 2026-10-27 | FTO vs IFEX9 (TCGA coverage) | `11_fto_locus.R` | #9 |
+
+Three early commit messages carry the wrong number. They were already pushed, so they were left as they are rather than rewriting history:
+- `bb97e57` says "Session 6" but belongs to Session 7 (TCGA).
+- `bde346d` and `a448bd6` say "Session 9" but belong to Session 10 (FTO vs IFEX9).
+
 ## Session 1 (2026-10-26): setup, download, first look at the cohort
 
 **What we did**
