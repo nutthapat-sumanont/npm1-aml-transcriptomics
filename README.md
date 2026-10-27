@@ -83,7 +83,7 @@ About 40% of NPM1-mutated samples (37 of 100) have high NEK10, FTO and USP44 (tw
 
 - **Mer et al. (2021), primitive vs committed subtypes.** Their primitive markers are all higher in our high group and their committed markers all lower.
 - **Arza-Apalategi et al. (2023), IFEX9-high.** They showed that "high FTO" in about a third of NPM1-mutated AML is really an intragenic lncRNA, IFEX9, linked to FLT3-ITD, TET2, IDH2 and an immature profile. Our high group is enriched for TET2 (33% vs 11%) and IDH2 (39% vs 13%), leans towards FLT3-ITD (51% vs 35%, not significant), and holds 11 of the 15 samples with NPM1 + FLT3-ITD + TET2 or IDH2.
-- **Caveat:** gene-level counts can't separate FTO from IFEX9. IFEX9 has no gene ID of its own in the Ensembl 75 annotation used by Beat AML, so its reads that overlap FTO exons are counted as FTO. Our "FTO up" may really be IFEX9.
+- **The "FTO" rise is IFEX9, not FTO itself** (TCGA-LAML read coverage, next section). Beat AML's gene-level counts can't separate the two: Ensembl 75 files IFEX9 as one of FTO's own transcripts (FTO-007, ENST00000472835), so its reads are counted as FTO.
 
 ![Primitive and committed scores by group](figures/06_subgroup_primitive_committed.png)
 
@@ -92,6 +92,12 @@ Primitive score (mean z-score of CDH2, GPR12, MDFI, ZNF521, PLXNB1, HHIP) and co
 ![Shared vs subgroup-specific genes](figures/06_subgroup_shared_vs_specific.png)
 
 Log2 fold change vs NPM1 wild-type for the primitive-like (y) and committed-like (x) subgroups, from a sensitivity DESeq2 model with a three-level group. Coloured points are the 1,019 main-model genes. HOXA9, HOXA10, MEIS1 and PBX3 are up and CD34 down in both subgroups (all padj < 1e-4), and the HOX genes sit near the diagonal: the HOX program is shared by NPM1-mutated AML as a whole. NEK10, USP44 and FTO rise only in the primitive-like group. Of the 1,019 genes, 521 change about equally in both subgroups, 381 mostly in the primitive-like group and 117 mostly in the committed-like group (one subgroup's fold change at least 2x the other's).
+
+### Is it FTO, or a transcript inside FTO?
+
+![FTO locus coverage](figures/11_fto_coverage.png)
+
+Read coverage along FTO (GRCh38, GENCODE v26, from recount3) in TCGA-LAML, scaled to 40 million 100-base reads: median of the 6 NPM1-mutated NEK10/FTO/USP44-high samples (orange, each sample also drawn thin), the 25 low samples (blue) and the 80 NPM1 wild-type samples (grey). FTO exons 1 to 8 look the same in all three groups. In the high group coverage jumps at IFEX9 exon 1, a small exon deep in FTO intron 8 (mean coverage 238 vs 4 in the low group; coordinates from Arza-Apalategi et al. 2023, checked against their qPCR primers), stays raised along the rest of intron 8, and lifts FTO exon 9 about 12-fold (81 vs 6.5). In every high sample, reads splice from IFEX9 exon 1 onto FTO exon 9 (61 to 434 reads per sample, vs at most 18 in the low samples), and onto several intron-8 acceptors that aren't in the annotation. The canonical FTO junctions (exon 1 to 2, ..., 8 to 9) are not higher in the high group. So the "high FTO" signal comes from a transcript that starts inside FTO and shares only its last exon: IFEX9, as Arza-Apalategi et al. reported. Exon 9 is also the part of FTO that gene-level counts are dominated by (10.2 of 11.4 kb of exon), which is why a gene-level count reads it as "FTO is up". Six high samples is a small group, so the per-sample plots (`figures/11_fto_coverage_per_sample.png`, `figures/11_fto_key_features.png`) matter as much as the tests: every one of the six shows the same pattern, and none of the 25 low samples does.
 
 ### Ex vivo drug response
 
@@ -145,6 +151,7 @@ Inside NPM1-mutated AML, the NEK10/FTO/USP44-high (primitive-like) group did wor
 | `scripts/08_tcga_replication.R` | Replication in TCGA-LAML (downloads about 650 MB from GDC) | `results/tcga_*.csv`, `figures/08_*.png` |
 | `scripts/09_drug_response.R` | Ex vivo drug response by NPM1 status, subgroup and HOX score | `results/drug_*.csv`, `figures/09_*.png` |
 | `scripts/10_survival.R` | Exploratory overall survival: NPM1, NPM1 x FLT3-ITD, NEK10/FTO/USP44 group (Beat AML and TCGA) | `results/survival_*.csv`, `figures/10_*.png` |
+| `scripts/11_fto_locus.R` | FTO vs IFEX9: read coverage and splice junctions along FTO in TCGA-LAML (recount3), plus FTO-locus genes in Beat AML | `results/fto_*.csv`, `figures/11_*.png` |
 
 The full run takes roughly 30 minutes plus download time. `run_all.R` hasn't yet been tested from a clean checkout. Each script saves its `sessionInfo()` to `results/`.
 
@@ -162,5 +169,6 @@ The full run takes roughly 30 minutes plus download time. `run_all.R` hasn't yet
 - Pei S, Pollyea DA, Gustafson A, et al. Monocytic subclones confer resistance to venetoclax-based therapy in patients with acute myeloid leukemia. *Cancer Discovery* 2020;10(4):536-551. https://doi.org/10.1158/2159-8290.CD-19-0710
 - Schoenfeld DA. Sample-size formula for the proportional-hazards regression model. *Biometrics* 1983;39(2):499-503. https://doi.org/10.2307/2531021
 - Tyner JW, Tognon CE, Bottomly D, et al. Functional genomic landscape of acute myeloid leukaemia. *Nature* 2018;562(7728):526-531. https://doi.org/10.1038/s41586-018-0623-z
+- Wilks C, Zheng SC, Chen FY, et al. recount3: summaries and queries for large-scale RNA-seq expression and splicing. *Genome Biology* 2021;22(1):323. https://doi.org/10.1186/s13059-021-02533-6
 - Verhaak RGW, Goudswaard CS, van Putten W, et al. Mutations in nucleophosmin (NPM1) in acute myeloid leukemia (AML): association with other gene abnormalities and previously established gene expression signatures and their favorable prognostic significance. *Blood* 2005;106(12):3747-3754. https://doi.org/10.1182/blood-2005-05-2168
 - Zhang H, Nakauchi Y, Köhnke T, et al. Integrated analysis of patient samples identifies biomarkers for venetoclax efficacy and combination strategies in acute myeloid leukemia. *Nature Cancer* 2020;1(8):826-839. https://doi.org/10.1038/s43018-020-0103-x

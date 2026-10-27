@@ -1,0 +1,4 @@
+"feature","build","chrom","start","end","source"
+"IFEX9 exon 1","GRCh38","chr16",54063753,54063943,"Arza-Apalategi et al. 2023, Supplementary methods"
+"IFEX9 exon 1","GRCh37","chr16",54097665,54097855,"same"
+"IFEX9 exon 2 = FTO exon 9 (GENCODE v26)","GRCh38","chr16",54111762,54121941,"GENCODE v26 ENST00000471389"

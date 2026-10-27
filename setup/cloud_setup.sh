@@ -35,6 +35,7 @@ $SUDO apt-get install -y -qq --no-install-recommends \
   r-bioc-deseq2 r-bioc-apeglm r-bioc-fgsea r-bioc-clusterprofiler \
   r-bioc-org.hs.eg.db r-cran-msigdbr r-cran-ggplot2 r-cran-ggrepel \
   r-cran-pheatmap r-cran-readxl r-cran-data.table r-cran-dplyr \
-  r-cran-proc r-cran-patchwork r-cran-httr r-cran-survival
+  r-cran-proc r-cran-patchwork r-cran-httr r-cran-survival \
+  r-bioc-recount3 r-bioc-rtracklayer
 
-Rscript -e 'pk <- c("DESeq2","apeglm","fgsea","clusterProfiler","org.Hs.eg.db","msigdbr","ggplot2","ggrepel","pheatmap","readxl","data.table","dplyr","pROC","patchwork","httr","survival"); for (p in pk) suppressPackageStartupMessages(library(p, character.only = TRUE)); cat("All", length(pk), "packages load OK\n")'
+Rscript -e 'pk <- c("DESeq2","apeglm","fgsea","clusterProfiler","org.Hs.eg.db","msigdbr","ggplot2","ggrepel","pheatmap","readxl","data.table","dplyr","pROC","patchwork","httr","survival","recount3","rtracklayer"); for (p in pk) suppressPackageStartupMessages(library(p, character.only = TRUE)); cat("All", length(pk), "packages load OK\n")'

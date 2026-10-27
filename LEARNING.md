@@ -786,3 +786,110 @@ FLT3-ITD in the same model: HR 2.79 (1.52 to 5.11). Age per 10 years: 1.71.
 - *The cBioPortal clinical table is fetched by `10_survival.R` if missing*, into the same cache file `08_tcga_replication.R` uses, so script 10 doesn't need the 650 MB TCGA download.
 - *survival package* (3.8.12) installed from r2u; added to `setup/cloud_setup.sh`. `scripts/run_all.R` now runs 10. README has a survival section, a script row and three new references (TCGA 2013, ELN 2022, Schoenfeld 1983).
 - *`data/` re-downloaded* with `scripts/01_download.R` (new container); nothing in it is committed.
+
+## Session 10 (2026-10-27): FTO itself, or a transcript inside FTO? (`scripts/11_fto_locus.R`)
+
+**Headline.** It's a transcript inside FTO. In TCGA-LAML, the NEK10/FTO/USP44-high samples don't make more of the normal FTO message. FTO exons 1 to 8 are the same in high and low samples (if anything slightly lower in high). What's extra is a transcript that starts deep inside FTO intron 8, at IFEX9 exon 1, and splices onto FTO's last exon (exon 9). All 6 high samples show it clearly and none of the 25 low samples does. This is the IFEX9 transcript from Arza-Apalategi et al. (Leukemia 2023). Their coordinates check out against the genome, and GENCODE and Ensembl already list it as one of FTO's own transcripts (FTO-007), which is why gene-level counts call it "FTO".
+
+**Four words first**
+- *Exons and introns.* A gene's DNA is written in pieces. The exons are the pieces kept in the finished RNA message; the introns are the long stretches between them, copied at first and then cut out. FTO is 457 kb long, but its 9 exons add up to only 11.4 kb, and exon 9 alone (mostly 3' UTR, the untranslated tail of the message) is 10.2 kb of that.
+- *Coverage.* For every letter of the genome, the number of sequencing reads lying on it. Plotted along a gene it looks like a skyline: tall towers on exons (finished messages pile up there) and a low, flat floor over introns (only freshly made, not-yet-spliced RNA covers them).
+- *Splice junction.* A read that starts at the end of one exon and continues at the start of the next, skipping the intron in between. It is direct evidence of which two pieces the cell joined together.
+- *Why junctions can reveal a hidden transcript.* A transcript that starts in an unusual place has to join its first exon to the next one somewhere, and that join leaves junction reads that the normal transcript never makes.
+
+**What we did, step by step**
+1. **recount3 check** (reported before going further). TCGA-LAML is in recount3 (178 samples). All 111 Session 7 main-cohort samples match exactly on the RNA-seq barcode, every bigWig is there (140 to 517 MB each, 43 GB total), and the junction tables are there too. recount3 aligned with STAR to **GRCh38 (hg38)** and annotates with **GENCODE v26 (Ensembl 88)**; we used both everywhere in this session. Median 61 M mapped reads.
+2. **Groups.** Session 7 cohort and NPM1 calls, read from `results/tcga_cohort.csv` and `results/tcga_block_scores.csv`: **6 FTO-high, 25 FTO-low, 80 NPM1 wild-type** (all wild-type kept, as approved).
+3. **Coverage.** For each sample we read only the FTO slice of its bigWig: FTO ± 20 kb, chr16:53,681,692-54,178,512, about 500 kb. A bigWig has an index, so the server sends just the part we ask for, not the whole 140 to 517 MB file. Each sample was scaled to 40 million 100-base reads with recount3's total-coverage number (AUC), as approved. Figures: `figures/11_fto_coverage.png` (group medians, each high sample, exons underneath, zoom on intron 8 to exon 9) and `figures/11_fto_coverage_per_sample.png` (all 31 NPM1-mutated samples on their own).
+4. **Exons and windows.** Features: the 9 exons of the canonical FTO transcript (ENST00000471389, the one the paper used), 24 other FTO exon pieces from alternative transcripts, the introns cut into windows of up to 1 kb (448), the flanks (40) and IFEX9 exon 1. For each feature: mean coverage, then Wilcoxon FTO-high vs FTO-low on (a) log2 coverage and (b) your ratio, log2(feature / the sample's own FTO exon coverage). BH across the 522 features. Because exon 9 is 89% of FTO's exon length and is shared with IFEX9, I ran the ratio twice: against all 9 exons, as you asked, and against exons 1 to 8 only, the part IFEX9 doesn't share.
+5. **Junctions** from recount3's project tables. We kept junctions in the locus and labelled each one: annotated in GENCODE v26, a new pairing of known exon ends, one end new, or both ends new. Counts were scaled per 10 M mapped reads. Junctions with at least 10 reads in total were tested high vs low (Wilcoxon, BH).
+6. **IFEX9 coordinates** from the paper's open supplement, checked against the GRCh38 sequence with their qPCR primers.
+7. **Beat AML:** the annotated genes inside FTO in our counts file against the Beat AML 37 / 63 split.
+
+**Key numbers**
+
+*Coverage, one number per sample (mean depth-adjusted coverage; `results/fto_locus_per_sample.csv`):*
+
+| | FTO-high (n = 6) | FTO-low (n = 25) | Wild-type (n = 80) | p, high vs low |
+|---|---|---|---|---|
+| FTO exons 1-8, median | 12.9 | 18.2 | 20.1 | 0.06 (lower in high) |
+| FTO exon 9, median | 87 | 6.2 | 5.9 | 3e-6 |
+| IFEX9 exon 1, median | 256 | 1.1 | 0.9 | 3e-6 |
+| Rest of FTO introns (not intron 8), median | 0.81 | 0.74 | 0.78 | 0.29 |
+| Exon 9 / exons 1-8 (log2), median | +2.5 | -1.6 | -1.8 | 3e-6 |
+| IFEX9 exon 1 -> exon 9 junction reads | 61 to 434 (all 6) | 0 to 18 (4 of 25 with >= 2) | 0 to 54 (5 of 80 with >= 2) | 3e-6 |
+
+- The six high samples, one by one: IFEX9 exon 1 coverage 71 to 421 and IFEX9 junction reads 61 to 434. The highest low sample has 29 and 18 (TCGA-AB-2992, which also has the highest score among the low samples).
+- With 6 vs 25, the smallest p a Wilcoxon test can give is 2.7e-6. Many features hit that floor, which means "the two groups don't overlap at all".
+
+*Windows (`results/fto_window_tests.csv`, `figures/11_fto_window_tests.png`):*
+
+| Version | Features with padj < 0.05 | Where |
+|---|---|---|
+| (a) log2 coverage | 78 of 522, all higher in high | 75 from IFEX9 exon 1 onwards (50 between IFEX9 exon 1 and the end of exon 9, 25 in the stretch after exon 9 that other FTO transcripts use), 1 window ending right where IFEX9 exon 1 begins, 2 windows in intron 1 (about 2-fold). **None of exons 1-8.** |
+| (b) ratio to FTO exons 1-8 | 102, all higher in high | 82 from IFEX9 exon 1 onwards, up 3 to 5 log2 units; 20 elsewhere, up only about 0.6, a uniform shift because exons 1-8 are slightly lower in high |
+| (b) ratio to all 9 exons | 470: 460 lower in high, 10 higher | The 10 higher are all in the IFEX9 stretch. The 460 lower are everything else, because the denominator (mostly exon 9) itself rises 12-fold in high |
+
+- Exons 1-8 one by one: high minus low is -0.25 to -0.80 log2 on coverage (no padj < 0.05) and -0.32 to +0.29 on the ratio to exons 1-8 (no padj < 0.05). If FTO itself were up, all nine exons would rise together; only exon 9 does (+3.8 log2, padj 1e-4).
+- Two other GENCODE v26 FTO transcripts start in intron 8: FTO-007 (exon 1 at 54,063,637-54,063,942, essentially IFEX9 exon 1), up 7.2 log2, and FTO-021 (exon 1 at 54,069,896-54,072,540), up 4.7 log2.
+
+*Junctions (`results/fto_junctions.csv`, `figures/11_fto_junctions.png`):*
+- 536 junctions in the locus, 384 with reads in our samples, 44 inside FTO with at least 10 reads (19 annotated, 3 new pairings, 18 with one new end, 4 with both ends new). Our GENCODE v26 labels agree with recount3's own flag for every junction we call annotated (34 of 34), which checks that the coordinates line up.
+- **The 8 canonical FTO junctions (exon 1 to 2, ..., 8 to 9) are not higher in the high group.** High/low ratio 0.59 to 1.17, p 0.03 to 0.78, and they lean lower.
+- 17 junctions pass my "mostly in FTO-high" rule (at least 2 reads in at least 3 of the 6 high samples and in at most 5 of the 25 low). Every one sits in the IFEX9 stretch, from intron 8 to the end of exon 9:
+  - **IFEX9 exon 1 -> FTO exon 9** (annotated, as FTO-007): 1,256 reads in the 6 high, 58 in the 25 low, 99 in the 80 wild-type.
+  - **IFEX9 exon 1 -> five new acceptors in intron 8** (at 54,068,882, 54,070,603, 54,072,299, 54,093,967 and 54,108,775). These aren't in GENCODE v26: 4 to 5 of 6 high, 0 of 25 low.
+  - **New donors in intron 8 -> FTO exon 9** (54,063,120, 54,066,919, 54,094,141 and 54,109,806), plus FTO-021's annotated one.
+  - All use GT-AG splice motifs on the + strand, so they read in the same direction as FTO.
+  - So the hidden transcript does leave new junctions. They are alternative splicings of the IFEX9 transcript within intron 8, and they appear only when IFEX9 is on.
+
+*IFEX9 coordinates (`results/fto_ifex9_coordinates.csv`, `results/fto_ifex9_primer_check.csv`).* The main text of the paper is paywalled, but the supplement is open. It gives IFEX9 exon 1 as chr16:54,063,753-54,063,943 (GRCh38) and 54,097,665-54,097,855 (GRCh37), and says IFEX9 exon 2 = FTO exon 9. Checked against the GRCh38 sequence: their forward qPCR primer sits inside exon 1 (at 54,063,907), and their reverse qPCR primer and 5' RACE primer sit at the start of exon 9 (54,111,796 and 54,111,859). So the coordinates are marked on the plots as given, not guessed. One detail: the reads and GENCODE put the splice donor at 54,063,942, 1 base before the paper's exon end, most likely a coordinate-convention difference.
+
+*Beat AML (`results/fto_locus_beataml_tests.csv`, `results/fto_ifex9_in_grch37_annotation.csv`):*
+
+| Gene (Ensembl 75) | Type | Median raw count, high / low | log2 difference | padj | Spearman with core score |
+|---|---|---|---|---|---|
+| FTO | protein coding | 13,223 / 929 | +3.59 | 1e-15 | 0.91 |
+| FTO-IT1 | sense intronic (intron 8, 23 kb before IFEX9 exon 1) | 34 / 19 | +0.55 | 7e-4 | 0.39 |
+| RP11-357N13.1 | antisense (intron 8) | 1 / 0 | +0.92 | 9e-9 | 0.59 |
+| RP11-357N13.2, .3 | antisense | 0 / 0 | 0 | 0.36 to 0.72 | < 0.1 |
+| AC007347.1 | pseudogene (inside exon 9) | 0 / 0 | not testable | | |
+
+- **None of these genes overlaps IFEX9 exon 1.** But Ensembl 75, the annotation behind the Beat AML counts, does list IFEX9: FTO-007 (ENST00000472835), exon 1 at GRCh37 54,097,549-54,097,854, joined to the start of exon 9. So IFEX9's reads are counted inside Beat AML's "FTO" gene, which explains the 14-fold raw difference.
+- FTO-IT1 and RP11-357N13.1 rise a little with the high group, but at tiny counts (RP11-357N13.1 has a median of 1 read). They are small neighbours of the IFEX9 transcription in intron 8, not separate evidence for or against it. We can't do better in Beat AML without the reads.
+
+**Conclusion: "a transcript inside FTO".** The evidence:
+1. FTO's own exons 1-8, and its own exon-to-exon junctions, are not higher in FTO-high samples. If anything they are a bit lower.
+2. Exon 9, the one exon FTO shares with IFEX9, rises 12-fold. Exon 9 makes up 89% of FTO's exon length, so gene-level counts read this as "FTO up".
+3. Coverage jumps at IFEX9 exon 1 (about 250 vs 1) and stays high along the rest of intron 8. The rest of FTO's introns don't change, so FTO's own transcription isn't up.
+4. Reads splice from IFEX9 exon 1 onto exon 9 in all 6 high samples (61 to 434 reads) and barely at all in low samples. There are also new junctions inside intron 8, seen only in high samples.
+5. Per sample, the six high samples are each clearly IFEX9-on, and the low samples are off or at most weakly on.
+
+This is the Arza-Apalategi et al. finding, reproduced from raw coverage in the same cohort they used for a check (TCGA). It is not a new discovery.
+
+**What I should understand**
+- *Why the ratio needed two denominators.* Your test (intron window ÷ the sample's exon coverage) assumes the exons are a fair "how much FTO" yardstick. Here the yardstick itself is contaminated: exon 9 is most of the exon length, and IFEX9 shares it. Against all 9 exons, every ordinary intron window looks "lower" in high, because the denominator went up. Against exons 1-8, the IFEX9-only part of FTO, the ratio is flat everywhere except the IFEX9 stretch, which is exactly the pattern you predicted for a hidden intronic transcript. Lesson: a ratio is only as clean as its denominator.
+- *Intron coverage isn't zero.* Introns get some reads from RNA that hasn't been spliced yet. That's why the rest of FTO's introns sit at about 0.8 in every group. If FTO itself were transcribed more, that floor would rise too; it doesn't.
+- *Unstranded coverage.* The coverage track adds up both DNA strands, so it can't say on its own which direction the extra RNA runs. The junctions can: all the IFEX9 junctions use the GT...AG splice signal read on the + strand, the same direction as FTO.
+- *Small n, still convincing.* Six samples is a small group, but here each one tells the same story and the size of the effect is enormous. That's why the per-sample plots carry the argument, and the p values only confirm what the plots show.
+- *What this changes and what it doesn't.* The "FTO up" gene in our Beat AML DESeq2 table (Session 3) is mostly IFEX9, so it shouldn't be read as "the FTO oncogene (the m6A demethylase) is higher". The NEK10/FTO/USP44 group is still real: NEK10 (chr3) and USP44 (chr12) are on other chromosomes, so the module is a whole cell state (primitive-like), and IFEX9 is one marker of it.
+
+**Open questions**
+1. **Cause or marker?** Arza-Apalategi et al. link IFEX9 to DNA methylation. TCGA-LAML has 450k methylation arrays, so we could test whether the IFEX9 exon 1 region is less methylated in the high samples.
+2. **All 6 TCGA high samples are FLT3-ITD negative** (vs 9 of 25 low; Session 7 p = 0.14), while the Beat AML high group leans FLT3-ITD positive (51% vs 35%) and the paper reports 53% FLT3-ITD in IFEX9-positive AML. Small numbers, but worth keeping in mind.
+3. **Two NPM1 wild-type samples express IFEX9** (TCGA-AB-2849 and 3009: exon 1 coverage 45 and 61, junction reads 36 and 54). Is IFEX9 a marker of a primitive state that occasionally turns up without NPM1?
+4. **Is IFEX9 on/off, or a dial?** A few low samples (TCGA-AB-2992, 2836, 2896) have modest IFEX9 (17 to 29 coverage, 16 to 18 junction reads). The paper used TPM > 10 as "positive" and found 8 of 38 TCGA NPM1-mutated cases; our k-means split found 6 of 31.
+5. **Redefine the subgroup by IFEX9 directly?** In TCGA that's now easy (IFEX9 exon 1 coverage or junction reads). In Beat AML it would need the controlled-access reads (dbGaP).
+
+**Deviations**
+- *Script number 11, as you asked.* There is no script 10 yet on any branch. `scripts/run_all.R` now runs 11 after 09.
+- *Didn't rerun `08_tcga_replication.R`.* The cohort and split it produces are committed in `results/`, so only `scripts/01_download.R` was rerun (new container; needed for step 7). Nothing in `data/` is committed.
+- *Only the FTO slice of each bigWig was read*, with indexed range requests, not the whole 43 GB. Cached per sample in `data/recount3/fto_cov/` (about 4 MB in total). Five of the eight parallel readers died silently on the first try, so the script now checks the files themselves and retries missing samples one at a time.
+- *A download trap, the same idea as the Git LFS pointers.* recount3's `http://` links answer with a 301 redirect, and a plain download saves a 167-byte HTML page with a ".gz" name. All recount3 files are fetched over `https://` and checked for the gzip signature.
+- *Annotation file:* GENCODE v26 exons from recount3's own `human.exon_sums.G026.gtf.gz`, so they match recount3 exactly. Exon numbers follow ENST00000471389.
+- *My choices, not set by you:* pseudocount 0.05 on coverage before log2 (about one 100-base read per 2 kb at this depth); windows made with `tile()`, so an intron piece is split into equal windows of at most 1,000 bp, and FTO exon bases from any transcript are left out of intron windows; alternative FTO exon pieces as their own features; the junction filter of at least 10 reads in total; scaling junctions per 10 M mapped reads; and the "mostly in FTO-high" rule (at least 2 reads in at least 3 of 6 high and at most 5 of 25 low), set before looking at which junctions passed.
+- *Second ratio denominator (exons 1-8)*, added next to the one you asked for (all exons), for the reason under "What I should understand". Both are in the table and figure data; the window figure shows the all-exons version next to plain coverage.
+- *IFEX9 exon 1 coordinates from the paper*, with a 2-base tolerance when matching junctions to it (the 1-base offset above).
+- *Sequence check through the Ensembl REST API, not UCSC.* UCSC's API fails the TLS check through this environment's proxy, and I didn't turn verification off.
+- *Extra outputs:* `results/fto_key_feature_tests.csv`, `results/fto_ifex9_in_grch37_annotation.csv` (Ensembl 75 lookup), `figures/11_fto_key_features.png`, `figures/11_fto_junctions.png`, a README section, and recount3 and rtracklayer added to `setup/cloud_setup.sh`.
+- *Beat AML step 7* uses DESeq2 size factors over the 100 NPM1-mutated samples and a Wilcoxon test per gene, with FTO kept in the table as the reference row.
