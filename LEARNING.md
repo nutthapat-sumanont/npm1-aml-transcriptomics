@@ -1063,7 +1063,7 @@ This is the Arza-Apalategi et al. finding, reproduced from raw coverage in the s
 2. Make the repo public, if it isn't yet: on GitHub, **Settings > General**, scroll to **Danger Zone > Change repository visibility > Change to public**, and confirm. Free GitHub accounts can only use Pages on public repos.
 3. Go to **Settings > Pages** (left sidebar, under "Code and automation").
 4. Under **Build and deployment**, set **Source** to **Deploy from a branch**. Then set **Branch** to `main` and the folder to `/docs`, and click **Save**.
-5. Wait 1 to 2 minutes. The **Actions** tab shows a run called "pages build and deployment"; when it's green, the Settings > Pages screen shows the address: **https://beckyzaza.github.io/npm1-aml-transcriptomics/**.
+5. Wait 1 to 2 minutes. The **Actions** tab shows a run called "pages build and deployment"; when it's green, the Settings > Pages screen shows the address: **https://nutthapat-sumanont.github.io/npm1-aml-transcriptomics/**.
 6. Every later push to `main` that changes `docs/` redeploys the site on its own.
 
 **Open questions**
@@ -1095,7 +1095,7 @@ This is the Arza-Apalategi et al. finding, reproduced from raw coverage in the s
 2. **`scripts/run_all.R` updated, then the whole pipeline was run from scratch** (details below). It times each script into `results/run_all_timings.csv`, stops if a numbered script in `scripts/` isn't in its list, and can resume after a failure with `Rscript scripts/run_all.R --from 08`.
 3. **Package versions locked with renv.** `renv.lock` lists 127 packages (R 4.6.1, Bioconductor 3.23). `setup/renv_snapshot.R` rewrites it; `setup/renv_snapshot.R --check` compares what's installed with it. README "How to reproduce" now gives both routes (renv for exact versions, `cloud_setup.sh` for fast binaries on Ubuntu 24.04).
 4. **"Results at a glance"** table and an **updated limitations and next-steps list** at the top of this file.
-5. **Web page.** Author line in the footer of all three pages ("Nutthapat Sumanont, BSc student, The University of Hong Kong", linked to github.com/Beckyzaza; no email). The gene lookup now shows the TCGA-LAML result next to the Beat AML one (call, log2FC with SE, fold change, padj, rank), matched on Ensembl `gene_id`, with one merged "Not tested in TCGA" cell when a gene has no TCGA row. Rebuilt with `scripts/12_build_site.R`.
+5. **Web page.** Author line in the footer of all three pages ("Nutthapat Sumanont, BSc student, The University of Hong Kong", linked to github.com/Beckyzaza, since renamed to nutthapat-sumanont; no email). The gene lookup now shows the TCGA-LAML result next to the Beat AML one (call, log2FC with SE, fold change, padj, rank), matched on Ensembl `gene_id`, with one merged "Not tested in TCGA" cell when a gene has no TCGA row. Rebuilt with `scripts/12_build_site.R`.
 
 **The clean run**
 
@@ -1144,3 +1144,6 @@ Done in a fresh clone of this branch with no `data/`, and with every generated f
 
 **Review fix (after the session, before merge)**
 - *"Every TCGA sample is bone marrow" wasn't supported.* The README, the lookup page and a comment in `08_tcga_replication.R` said it, but the same script keeps samples whose GDC type is "Primary Blood Derived Cancer - Peripheral Blood" (the one label GDC gives every TCGA-LAML tumour sample), and GDC's AML case form accepts either bone marrow or blood. So the real source of each TCGA sample isn't recorded per sample. The wording now says what we know: GDC gives every sample the same specimen type, so there's nothing to adjust for. No result changes. If some TCGA samples were blood and others marrow, that would add unexplained noise, which makes replication harder, not easier; worth one line in Limitations.
+
+**GitHub username change (2026-10-27, after Session 12)**
+- The GitHub account was renamed from Beckyzaza to nutthapat-sumanont, so the name matches the author line. GitHub redirects the old repository URLs (web and git), but not the old profile page or Pages sites, so every link in `docs/` and `CLAUDE.md` now uses the new name. The project site will be at https://nutthapat-sumanont.github.io/npm1-aml-transcriptomics/ once the repo is public and Pages is on.
