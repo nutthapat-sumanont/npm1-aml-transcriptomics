@@ -1141,3 +1141,6 @@ Done in a fresh clone of this branch with no `data/`, and with every generated f
 - *Lookup wording:* the call badges are shortened to "Higher", "Lower" and "Not changed" so two cohorts fit side by side on a phone; a line above the table says what they mean. The lookup footer now credits TCGA-LAML as well.
 - *Author line* is plain text without "By" in front, exactly as you wrote it.
 - *Limitations and next steps* are a new list near the top of this file, rather than edits to the Session 5 list, which is kept as it was with a pointer to the new one.
+
+**Review fix (after the session, before merge)**
+- *"Every TCGA sample is bone marrow" wasn't supported.* The README, the lookup page and a comment in `08_tcga_replication.R` said it, but the same script keeps samples whose GDC type is "Primary Blood Derived Cancer - Peripheral Blood" (the one label GDC gives every TCGA-LAML tumour sample), and GDC's AML case form accepts either bone marrow or blood. So the real source of each TCGA sample isn't recorded per sample. The wording now says what we know: GDC gives every sample the same specimen type, so there's nothing to adjust for. No result changes. If some TCGA samples were blood and others marrow, that would add unexplained noise, which makes replication harder, not easier; worth one line in Limitations.
