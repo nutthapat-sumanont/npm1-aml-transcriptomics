@@ -681,3 +681,108 @@ Three fits, all on the same 270 samples and the same 19,398 genes. Wave has two 
 - *Extra outputs*: `results/drug_analysis_samples.csv`, `drug_venetoclax_by_npm1.csv`, `drug_menin_check.csv`, `figures/09_subgroup_kinase_inhibitors.png`. README gets a drug-response section, updated subgroup numbers, rows for scripts 07 to 09, and two references (Pei et al. 2020, Zhang et al. 2020). `scripts/run_all.R` now runs 09.
 - *The first draft of `09_drug_response.R` went into the step 0 commit by accident* (it was already in the folder when I committed step 0). The final version is in the session's last commit.
 - *`data/` re-downloaded* with `scripts/01_download.R` (new container); nothing in it is committed.
+
+## Session 9 (2026-10-27): an exploratory look at survival (`scripts/10_survival.R`)
+
+Treatment varied a lot across Beat AML patients, so everything in this entry is exploratory: a direction and a rough size, not a verdict.
+
+**What we did, step by step**
+1. **Found the survival columns** in the Beat AML clinical summary and worked out what they mean (below). Described treatment per group, but kept it out of every model.
+2. **NPM1-mutated vs wild-type** in the main cohort: Kaplan-Meier curves, log-rank test, Cox model adjusted for age. Then the **four NPM1 x FLT3-ITD groups**, and the ELN 2022 favorable group (NPM1-mutated without FLT3-ITD) against everyone else, with and without the other favorable-risk AML in the comparison group.
+3. **Inside NPM1-mutated AML: NEK10/FTO/USP44-high vs -low** (the Session 8 three-gene split, 37 / 63), Cox adjusted for age and FLT3-ITD, plus a power calculation.
+4. **The same in TCGA-LAML**, with overall survival from the TCGA paper's clinical table on cBioPortal (the Session 7 source) and the TCGA three-gene split from Session 7 (6 high / 25 low).
+
+**The survival columns**
+- `overallSurvival` is the time in **days**; `vitalStatus` is Alive, Dead or Unknown; `causeOfDeath` splits the deaths into Disease, Treatment, Other and Unknown (main cohort: 101, 20, 6 and 6 of 133). We use all deaths, whatever the cause: that's what overall survival means.
+- **Time zero is study inclusion.** The data dictionary wasn't reachable from the container, and Bottomly et al. 2022 only say "post-diagnosis survival, measured in days", so I checked the data: `overallSurvival` is the same for every sample of a patient (107 of 108 patients with several samples), and it's almost never shorter than the gap between inclusion and a sample (9 of 942 samples, by a few days or weeks). So it's a patient-level clock that starts at inclusion. In our main cohort 272 of 276 RNA-seq samples were taken on the inclusion day and the other 4 within 3 days, so **in practice time zero = diagnosis = the day of our sample**.
+- **Censoring.** "Dead": `overallSurvival` is days to death, an event. "Alive": it's days to last contact. We know the patient lived at least that long, but not what happened next. That patient counts in the "at risk" group up to that day and then drops out without counting as a death. That's what censoring means, and it's why we use Kaplan-Meier and Cox instead of just comparing the share who died. "Unknown": no follow-up at all (`overallSurvival` = 0), so that patient can't be used.
+- 1 main-cohort patient has Unknown status (BA2082R, wild-type), so the survival set is **275 patients, 133 deaths**. 1 more wild-type patient has no age, so the age-adjusted models use 274.
+- **Median follow-up 35 months** (reverse Kaplan-Meier: treat "alive at last contact" as the event; it measures how long survivors were followed, without being pulled down by early deaths). TCGA NPM1-mutated: 53 months.
+- TCGA's `OS_MONTHS` is "months since initial diagnosis", and `OS_STATUS` "1:DECEASED" is the event. Both cohorts are plotted in months (Beat AML days / 30.44).
+
+**Key numbers, step 2 (Beat AML main cohort)**
+
+| Comparison (Cox, adjusted for age) | HR | 95% CI | p |
+|---|---|---|---|
+| NPM1-mutated vs wild-type (unadjusted) | 0.82 | 0.57 to 1.18 | 0.29 |
+| NPM1-mutated vs wild-type | 0.70 | 0.49 to 1.01 | 0.06 |
+| NPM1-mut / ITD-neg vs NPM1-wt / ITD-neg | **0.42** | 0.25 to 0.69 | 0.0008 |
+| NPM1-mut / ITD-pos vs NPM1-wt / ITD-neg | 1.26 | 0.80 to 1.98 | 0.32 |
+| NPM1-wt / ITD-pos vs NPM1-wt / ITD-neg | 0.82 | 0.47 to 1.42 | 0.47 |
+| NPM1-mut / ITD-neg vs everyone else | **0.41** | 0.25 to 0.67 | 0.0004 |
+| ... with CBF and CEBPA AML removed from "everyone else" | 0.38 | 0.23 to 0.62 | 0.0001 |
+| NPM1-mut / ITD-neg vs CBF / CEBPA only (unreliable, see below) | 0.34 | 0.15 to 0.79 | 0.01 |
+| Age, per 10 years (in the NPM1 model) | 1.50 | 1.34 to 1.69 | 6e-12 |
+
+| Group | n | Deaths | Median OS (months) | 1 yr | 3 yr |
+|---|---|---|---|---|---|
+| NPM1-wt / ITD-neg | 142 | 74 | 19 | 63% | 40% |
+| NPM1-wt / ITD-pos | 33 | 15 | 21 | 58% | 45% |
+| NPM1-mut / ITD-neg | 59 | 19 | not reached | 82% | 63% |
+| NPM1-mut / ITD-pos | 41 | 25 | 11 | 48% | 30% |
+
+- **Yes, the ELN 2022 favorable group does better**: about 60% lower death rate than everyone else at any given time, after adjusting for age. NPM1 status on its own is only borderline (HR 0.70), because the NPM1-mutated group mixes the favorable ITD-negative patients with the ITD-positive ones, who did no better (and maybe worse) than the wild-type baseline.
+- **The other favorable-risk AML in the wild-type group** is 48 patients (28 CBFB-MYH11, 10 RUNX1-RUNX1T1, 10 CEBPA). They're in "everyone else", which should make the wild-type group look better and shrink the NPM1 benefit. Taking them out moves the HR only from 0.41 to 0.38, so they don't drive the result.
+- The direct comparison with CBF / CEBPA (HR 0.34) shouldn't be trusted: those patients are 25 years younger (median age 36.5 vs 61), and with almost no overlap in age the model has to extrapolate the age effect. Unadjusted, 13 of 48 CBF / CEBPA patients died vs 19 of 59 NPM1-mut / ITD-neg, about the same.
+
+**Key numbers, step 3 (NEK10/FTO/USP44-high vs -low, Beat AML NPM1-mutated, n = 100)**
+
+| | Low (n = 63) | High (n = 37) |
+|---|---|---|
+| Deaths | 26 (41%) | 18 (49%) |
+| Deaths within 60 days | 5 | 9 (6 of them FLT3-ITD+) |
+| FLT3-ITD positive | 22 (35%) | 19 (51%) |
+| Median age | 59 | 61 |
+| Intensive chemotherapy ever / transplant ever | 48 / 24 | 29 / 12 |
+| Median OS (months) | 45 | 19 |
+
+| Model | HR (high vs low) | 95% CI | p |
+|---|---|---|---|
+| Unadjusted (log-rank p = 0.14) | 1.58 | 0.86 to 2.88 | 0.14 |
+| **Adjusted for age and FLT3-ITD (main)** | **1.19** | **0.64 to 2.21** | **0.57** |
+| Report only: continuous core score, per unit of mean z | 1.01 | 0.75 to 1.36 | 0.97 |
+| Report only: Mer et al. primitive vs committed call | 0.94 | 0.51 to 1.72 | 0.84 |
+| Report only: intensive chemotherapy patients only (n = 77, 29 deaths) | 1.60 | 0.74 to 3.44 | 0.23 |
+
+FLT3-ITD in the same model: HR 2.79 (1.52 to 5.11). Age per 10 years: 1.71.
+
+**Power, in plain numbers** (Schoenfeld's formula for a two-group Cox / log-rank test, alpha 0.05)
+
+| | Deaths | Share in high group | Power for HR 1.5 | HR 2 | HR 3 | Smallest HR with 80% power | Deaths needed for HR 1.5 / HR 2 |
+|---|---|---|---|---|---|---|---|
+| Beat AML | 44 | 37% | 25% | 60% | 94% | 2.4 | 205 / 71 |
+| TCGA | 22 | 19% | 11% | 25% | 53% | 4.5 | 306 / 105 |
+
+**Key numbers, step 4 (TCGA NPM1-mutated, n = 31)**
+- 22 deaths: **20 of 25 low, 2 of 6 high**. None of the 6 high cases has FLT3-ITD (Beat AML: half of them do).
+- HR high vs low, adjusted for age and FLT3-ITD: **0.29 (0.06 to 1.30), p = 0.11**; unadjusted 0.26 (0.06 to 1.13), log-rank p = 0.055. That's the opposite direction to Beat AML.
+- TCGA patients were all treated on intensive protocols (mostly 7+3), so treatment is more uniform than in Beat AML. Doesn't rescue the power, though.
+
+**What I should understand**
+- **Kaplan-Meier** gives the share still alive over time, recalculated at each death among those still being followed. **Log-rank** asks whether the curves differ. **Cox** gives a hazard ratio: the death rate in one group relative to the other at any moment. HR 0.5 = half the death rate; HR 1 = no difference. The 95% CI is the range of HRs compatible with the data.
+- **Why age is in every model.** Age is the strongest known predictor of AML survival (here 50% higher death rate per 10 years). If one group is older, it will look worse for that reason alone.
+- **The NPM1 result matches the clinic.** NPM1-mutated AML without FLT3-ITD is the favorable group in ELN 2022, and that's exactly where the benefit sits. With FLT3-ITD, ELN 2022 calls NPM1-mutated AML intermediate risk regardless of the allelic ratio, and our NPM1-mut / ITD-pos group indeed did no better than the baseline. This is a good sign that the survival data and our group labels make sense.
+- **The NEK10/FTO/USP44 result is inconclusive.** Before adjustment the high group looks worse, in line with Mer et al.'s finding that the primitive subtype has worse survival. But that gap comes mostly from early deaths (within 60 days) and from the high group carrying more FLT3-ITD. Once FLT3-ITD and age are in the model, the HR is 1.19 with a CI from 0.64 (36% fewer deaths) to 2.21 (more than double). So: **same direction as Mer et al., but our data can't tell a real effect from no effect.** The continuous score and the Mer primitive call itself both give HR about 1, which argues against a strong effect.
+- **What 44 deaths buys.** Power depends on the number of deaths, not patients. With 44 deaths split 37 / 63, we'd catch a true HR of 2 only 60% of the time, and an HR of 1.5 (a realistic size for a subgroup effect) only 25% of the time. A "not significant" result here mostly means "not enough deaths", not "no effect". To have 80% power for HR 1.5 we'd need about 205 deaths, roughly five times what we have.
+- **TCGA can't help.** 22 deaths, only 2 of them in the high group, and 11% power for HR 1.5. Its HR of 0.29 points the other way, but a CI from 0.06 to 1.30 covers everything from "much better" to "somewhat worse". One or two deaths more or less in the 6 high patients would change the picture completely. It's not evidence against Mer et al.; it's no evidence at all.
+- **Why treatment isn't in the models.** Beat AML patients got anything from 7+3 to azacitidine to trial drugs. Treatment choice depends on age and fitness, so it's tangled up with the outcome. Transplant is worse: it happens months after diagnosis, so a yes/no transplant variable gives transplanted patients credit for the months they had to survive to get there (immortal time bias). The proper tools (time-dependent covariates, landmark analysis) are beyond an exploratory look, so treatment is only described.
+- **Proportional hazards check.** Cox assumes the HR is constant over time. The age term fails this mildly in the main models (p = 0.03 to 0.04), and the high vs low term is borderline (p = 0.07), which fits the picture of a gap that opens early and then narrows. Another reason to read one HR as a rough summary only.
+
+**Open questions**
+1. Do the early deaths in the high group (9 of 37 within 60 days) reflect disease biology, or older / sicker patients who got low-intensity treatment? A landmark analysis from day 60 would separate early deaths from long-term survival.
+2. Should survival be limited to intensively treated patients for any future model? It cuts the cohort to 77 NPM1-mutated patients and 29 deaths, so power drops further.
+3. A pooled analysis (Beat AML + TCGA, stratified by cohort) would give 66 deaths, still underpowered. Mer et al. used larger combined cohorts; their published data might be the better test.
+4. ELN 2022 risk for every main-cohort patient (we only have ELN 2017) would let us adjust the NPM1 comparison for the full risk group, not just FLT3-ITD.
+
+**Deviations**
+- *Time zero is inferred from the data*, not from the Beat AML data dictionary, which I couldn't open from the container (GitHub blocked the README). The checks are in `results/survival_definitions.csv`.
+- *1 patient dropped* (BA2082R, vital status Unknown, no follow-up) and *1 more dropped from age-adjusted models* (no age). You didn't approve these filters explicitly; there was no way to use them.
+- *Age as a straight line per 10 years* in every Cox model. I picked this; age categories or a spline are alternatives.
+- *Reference group for the four NPM1 x FLT3-ITD groups is NPM1-wt / ITD-neg* (the biggest group). The "ELN favorable" question is answered with an extra model, NPM1-mut / ITD-neg vs everyone else.
+- *"Other favorable-risk AML" = NPM1-wt with ELN2017 Favorable* (CBF and CEBPA). ELN 2022 changed the CEBPA rule (in-frame bZIP mutations rather than biallelic), which we can't apply with the data we have.
+- *Extra models, report only*: continuous core score, the Mer et al. primitive/committed call, intensive-chemotherapy-only subset. "Intensive" = any recorded anthracycline / cytarabine-based intensive regimen (7+3 and variants, HiDAC/MiDAC, FLAG, CLAG, MEC, CPX-351, ...), matched by text in `cumulativeTreatmentRegimens`; the regex is in the script.
+- *Extra descriptive tables*: treatment and induction response by group (`results/survival_treatment_summary.csv`), group characteristics including deaths within 60 days (`results/survival_block_characteristics.csv`), proportional hazards checks (`results/survival_ph_checks.csv`).
+- *TCGA uses the cBioPortal survival (OS_MONTHS, OS_STATUS)*, not GDC's clinical table, and only the three-gene `core_group` split from Session 7 (not the four-gene `block_group`), to match the Session 8 definition.
+- *The cBioPortal clinical table is fetched by `10_survival.R` if missing*, into the same cache file `08_tcga_replication.R` uses, so script 10 doesn't need the 650 MB TCGA download.
+- *survival package* (3.8.12) installed from r2u; added to `setup/cloud_setup.sh`. `scripts/run_all.R` now runs 10. README has a survival section, a script row and three new references (TCGA 2013, ELN 2022, Schoenfeld 1983).
+- *`data/` re-downloaded* with `scripts/01_download.R` (new container); nothing in it is committed.

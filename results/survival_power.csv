@@ -1,0 +1,3 @@
+"cohort","comparison","deaths","fraction_in_group","power_HR_1.5","power_HR_2","power_HR_3","min_HR_80pct_power","deaths_needed_HR_1.5","deaths_needed_HR_2"
+"Beat AML","NPM1-mut: block high vs low",44,0.37,0.254166036118871,0.602522784030453,0.940431885944463,2.39838391399566,205,71
+"TCGA","NPM1-mut: core high vs low",22,0.194,0.113407742722191,0.24967795397601,0.530233831275544,4.53511073876672,306,105

@@ -30,7 +30,9 @@ Files used:
 Please cite the Beat AML papers when using these data:
 
 - Bottomly D, Long N, Schultz AR, et al. Integrative analysis of drug response and clinical outcome in acute myeloid leukemia. *Cancer Cell* 2022;40(8):850-864.e9. https://doi.org/10.1016/j.ccell.2022.07.002
+- Cancer Genome Atlas Research Network. Genomic and epigenomic landscapes of adult de novo acute myeloid leukemia. *New England Journal of Medicine* 2013;368(22):2059-2074. https://doi.org/10.1056/NEJMoa1301689
 - Pei S, Pollyea DA, Gustafson A, et al. Monocytic subclones confer resistance to venetoclax-based therapy in patients with acute myeloid leukemia. *Cancer Discovery* 2020;10(4):536-551. https://doi.org/10.1158/2159-8290.CD-19-0710
+- Schoenfeld DA. Sample-size formula for the proportional-hazards regression model. *Biometrics* 1983;39(2):499-503. https://doi.org/10.2307/2531021
 - Tyner JW, Tognon CE, Bottomly D, et al. Functional genomic landscape of acute myeloid leukaemia. *Nature* 2018;562(7728):526-531. https://doi.org/10.1038/s41586-018-0623-z
 
 **Cohort.** AML only, sample taken at initial diagnosis, de novo AML only (no secondary or therapy-related AML), one sample per patient (the earliest). Acute promyelocytic leukaemia and KMT2A-fusion cases were excluded from the main comparison; the KMT2A-fusion cases are kept for a separate three-group plot. One sample was dropped in QC because its recorded sex didn't match its expression (possible sample swap). Final main cohort: **276 patients, 100 NPM1-mutated and 176 wild-type.** The step-by-step counts are in `results/cohort_flow.csv`.
@@ -43,7 +45,7 @@ Please cite the Beat AML papers when using these data:
 
 **Expression plots and subgroup analysis.** Expression values for plots are DESeq2 variance-stabilised (VST) counts. Within NPM1-mutated AML, a score from NEK10, FTO and USP44 (mean z-score) was split into two groups by k-means. The groups were compared with exome mutation calls, FLT3-ITD, and marker scores for the primitive and committed subtypes of Mer et al. (2021). A second sensitivity DESeq2 model replaced NPM1 status with a three-level group (wild-type, NPM1-high, NPM1-low): `~ wave + specimen_type + sex + group`.
 
-**Software.** R 4.6.1 on Ubuntu 24.04. DESeq2 1.52.0, apeglm 1.34.0, fgsea 1.38.0, msigdbr 26.1.1 (MSigDB 2026.1.Hs), BiocParallel 1.46.0, data.table 1.18.6.1, dplyr 1.2.1, tidyr 1.3.2, readxl 1.6.0, jsonlite 2.0.0, ggplot2 4.0.3, ggrepel 0.9.8, pheatmap 1.0.13. Full `sessionInfo()` for each step is in `results/sessionInfo*.txt`. Random steps use seed 2026.
+**Software.** R 4.6.1 on Ubuntu 24.04. DESeq2 1.52.0, apeglm 1.34.0, fgsea 1.38.0, msigdbr 26.1.1 (MSigDB 2026.1.Hs), BiocParallel 1.46.0, data.table 1.18.6.1, dplyr 1.2.1, tidyr 1.3.2, readxl 1.6.0, jsonlite 2.0.0, ggplot2 4.0.3, ggrepel 0.9.8, pheatmap 1.0.13, survival 3.8.12. Full `sessionInfo()` for each step is in `results/sessionInfo*.txt`. Random steps use seed 2026.
 
 ## Results
 
@@ -101,6 +103,18 @@ Beat AML tested each sample's leukaemia cells against a drug panel and summarise
 
 Venetoclax (BCL-2 inhibitor). A: no clear difference between NPM1-mutated and wild-type samples (adjusted difference -16, FDR 0.35). B: venetoclax AUC rises steeply with the monocyte-like score in both groups (Spearman 0.64 and 0.79): monocytic AML cells rely on MCL-1 rather than BCL-2 and resist venetoclax (Pei et al. 2020; Zhang et al. 2020). C: inside NPM1-mutated AML, the primitive-like NEK10/FTO/USP44-high group is far more sensitive than the committed-like group (median AUC 65 vs 204, FDR 8e-6), and about half of that gap remains after adjusting for the monocyte-like score. Mer et al. (2021) linked the primitive subtype to sorafenib, sunitinib and quizartinib sensitivity in an earlier Beat AML release; here those three lean the same way at most weakly (FDR 0.32 to 0.99).
 
+### Survival (exploratory)
+
+Treatment varied a lot across Beat AML patients (intensive chemotherapy, azacitidine or decitabine, trial drugs, transplant or not) and we can't model that, so these results are exploratory. Overall survival in Beat AML is counted from study inclusion, which for every main-cohort patient is the day of the diagnostic sample (within 3 days); patients alive at last contact are censored. 275 of 276 patients have follow-up (133 deaths; median follow-up 35 months).
+
+![Survival by NPM1 and FLT3-ITD](figures/10_km_npm1_flt3.png)
+
+NPM1-mutated vs wild-type, adjusted for age: HR 0.70 (95% CI 0.49 to 1.01). The benefit sits entirely in NPM1-mutated AML **without** FLT3-ITD (ELN 2022 favorable): HR 0.41 (0.25 to 0.67) vs everyone else, and 0.42 vs NPM1-wt / ITD-neg; 3-year survival 63% vs 30% for NPM1-mutated with FLT3-ITD. The wild-type group also holds 48 patients with other favorable-risk AML (CBF, CEBPA); taking them out barely changes the HR (0.38).
+
+![Survival by NEK10/FTO/USP44 group](figures/10_km_nek10_fto_usp44.png)
+
+Inside NPM1-mutated AML, the NEK10/FTO/USP44-high (primitive-like) group did worse before adjustment in Beat AML (HR 1.58, 0.86 to 2.88), much of it from deaths in the first two months (9 of 37 vs 5 of 63) and from FLT3-ITD (51% vs 35%). Adjusted for age and FLT3-ITD the HR is 1.19 (0.64 to 2.21; 18 deaths in 37 high, 26 in 63 low). That leans the same way as Mer et al. (2021) but is far from conclusive: with 44 deaths the test has about 60% power for an HR of 2 and 25% for 1.5. In TCGA (31 patients, 22 deaths, only 2 in the 6 high cases) the point estimate goes the other way (HR 0.29, 0.06 to 1.30), which with these numbers tells us almost nothing.
+
 ## Interpretation
 
 *To write: what the results mean for NPM1 biology and menin inhibitors.*
@@ -130,6 +144,7 @@ Venetoclax (BCL-2 inhibitor). A: no clear difference between NPM1-mutated and wi
 | `scripts/07_cell_composition.R` | Malignant cell-type scores and cell-type sensitivity DESeq2 | `results/celltype_*.csv`, `results/deseq2_celltype_*.csv`, `figures/07_*.png` |
 | `scripts/08_tcga_replication.R` | Replication in TCGA-LAML (downloads about 650 MB from GDC) | `results/tcga_*.csv`, `figures/08_*.png` |
 | `scripts/09_drug_response.R` | Ex vivo drug response by NPM1 status, subgroup and HOX score | `results/drug_*.csv`, `figures/09_*.png` |
+| `scripts/10_survival.R` | Exploratory overall survival: NPM1, NPM1 x FLT3-ITD, NEK10/FTO/USP44 group (Beat AML and TCGA) | `results/survival_*.csv`, `figures/10_*.png` |
 
 The full run takes roughly 30 minutes plus download time. `run_all.R` hasn't yet been tested from a clean checkout. Each script saves its `sessionInfo()` to `results/`.
 
@@ -141,8 +156,11 @@ The full run takes roughly 30 minutes plus download time. `run_all.R` hasn't yet
 
 - Arza-Apalategi S, Heuts BMH, Dooijes MTM, et al. High expression of an intragenic long noncoding RNA misinterpreted as high FTO oncogene expression in NPM1 mutant acute myeloid leukemia. *Leukemia* 2023;37(4):901-904. https://doi.org/10.1038/s41375-023-01844-w
 - Bottomly D, Long N, Schultz AR, et al. Integrative analysis of drug response and clinical outcome in acute myeloid leukemia. *Cancer Cell* 2022;40(8):850-864.e9. https://doi.org/10.1016/j.ccell.2022.07.002
+- Cancer Genome Atlas Research Network. Genomic and epigenomic landscapes of adult de novo acute myeloid leukemia. *New England Journal of Medicine* 2013;368(22):2059-2074. https://doi.org/10.1056/NEJMoa1301689
+- Döhner H, Wei AH, Appelbaum FR, et al. Diagnosis and management of AML in adults: 2022 recommendations from an international expert panel on behalf of the ELN. *Blood* 2022;140(12):1345-1377. https://doi.org/10.1182/blood.2022016867
 - Mer AS, Heath EM, Madani Tonekaboni SA, et al. Biological and therapeutic implications of a unique subtype of NPM1 mutated AML. *Nature Communications* 2021;12(1):1054. https://doi.org/10.1038/s41467-021-21233-0
 - Pei S, Pollyea DA, Gustafson A, et al. Monocytic subclones confer resistance to venetoclax-based therapy in patients with acute myeloid leukemia. *Cancer Discovery* 2020;10(4):536-551. https://doi.org/10.1158/2159-8290.CD-19-0710
+- Schoenfeld DA. Sample-size formula for the proportional-hazards regression model. *Biometrics* 1983;39(2):499-503. https://doi.org/10.2307/2531021
 - Tyner JW, Tognon CE, Bottomly D, et al. Functional genomic landscape of acute myeloid leukaemia. *Nature* 2018;562(7728):526-531. https://doi.org/10.1038/s41586-018-0623-z
 - Verhaak RGW, Goudswaard CS, van Putten W, et al. Mutations in nucleophosmin (NPM1) in acute myeloid leukemia (AML): association with other gene abnormalities and previously established gene expression signatures and their favorable prognostic significance. *Blood* 2005;106(12):3747-3754. https://doi.org/10.1182/blood-2005-05-2168
 - Zhang H, Nakauchi Y, Köhnke T, et al. Integrated analysis of patient samples identifies biomarkers for venetoclax efficacy and combination strategies in acute myeloid leukemia. *Nature Cancer* 2020;1(8):826-839. https://doi.org/10.1038/s43018-020-0103-x

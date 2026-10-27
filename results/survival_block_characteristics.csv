@@ -1,0 +1,5 @@
+"group","cohort","n","median_age","FLT3_ITD_pos","intensive","transplant","CR_after_induction","deaths","deaths_by_60_days","ITD_pos_among_early_deaths"
+"low","Beat AML",63,59,22,48,24,45,26,5,3
+"high","Beat AML",37,61,19,29,12,24,18,9,6
+"low","TCGA",25,53,9,21,13,NA,20,2,0
+"high","TCGA",6,52.5,0,5,2,NA,2,1,0
