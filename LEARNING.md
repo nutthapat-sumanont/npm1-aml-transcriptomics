@@ -1083,3 +1083,58 @@ This is the Arza-Apalategi et al. finding, reproduced from raw coverage in the s
 
 **Review fix (after the session, before merge)**
 - *Lookup chart width.* The chart was drawn while its section was still hidden, so Plotly measured the box as 0 px wide and fell back to a fixed 700 px chart. On a 390 px phone screen that made the whole page scroll sideways; on desktop the chart was narrower than the table under it. `docs/assets/lookup.js` now unhides the section before drawing. If Plotly can't load, the chart box also shrinks to fit the message, so there's no empty gap above the numbers. Checked in a headless browser at 1280 px and 390 px, with and without Plotly.
+
+## Session 12 (2026-10-27): final session, README results, clean run, renv, TCGA in the gene lookup
+
+**What we did, step by step**
+1. **README Results now covers Phase 2.** Two sections were missing and are added, each figure with a caption:
+   - *How much of the NPM1 signal is cell maturity?* (Session 6): `figures/07_celltype_adjusted_lfc.png`, leading with the two-score model; the all-six model is described only as an upper bound.
+   - *Replication in TCGA-LAML* (Session 7): signature score ROC (`08_tcga_signature_score_roc.png`), fold-change agreement (`08_tcga_lfc_vs_beataml.png`) and the three-group plot (`08_tcga_three_group_hoxa9_meis1.png`).
+   - Methods got short paragraphs for cell maturity, TCGA, drugs, survival and the FTO locus, and the software list now matches `renv.lock`.
+   - Every number in the README was checked against `results/` and this log. All matched, apart from one wording slip: the subgroup section said "About 40% (37 of 100)", left over from the old 39 / 61 split; it now says "more than a third".
+2. **`scripts/run_all.R` updated, then the whole pipeline was run from scratch** (details below). It times each script into `results/run_all_timings.csv`, stops if a numbered script in `scripts/` isn't in its list, and can resume after a failure with `Rscript scripts/run_all.R --from 08`.
+3. **Package versions locked with renv.** `renv.lock` lists 127 packages (R 4.6.1, Bioconductor 3.23). `setup/renv_snapshot.R` rewrites it; `setup/renv_snapshot.R --check` compares what's installed with it. README "How to reproduce" now gives both routes (renv for exact versions, `cloud_setup.sh` for fast binaries on Ubuntu 24.04).
+4. **"Results at a glance"** table and an **updated limitations and next-steps list** at the top of this file.
+5. **Web page.** Author line in the footer of all three pages ("Nutthapat Sumanont, BSc student, The University of Hong Kong", linked to github.com/Beckyzaza; no email). The gene lookup now shows the TCGA-LAML result next to the Beat AML one (call, log2FC with SE, fold change, padj, rank), matched on Ensembl `gene_id`, with one merged "Not tested in TCGA" cell when a gene has no TCGA row. Rebuilt with `scripts/12_build_site.R`.
+
+**The clean run**
+
+Done in a fresh clone of this branch with no `data/`, and with every generated file deleted too (all of `results/`, `figures/`, `docs/data/`, `docs/figures/`), so each output had to be made again. Then every regenerated file was compared byte for byte with the committed one.
+
+*First pass* (the code as it was at the start of the session):
+- **01 to 07 ran without errors** (14.5 min). 05 had to fetch the chrY gene list from Ensembl again, because its cached copy was deleted too; that worked.
+- **08 failed** after 4.4 min: GDC answered one TCGA count file (TCGA-AB-2955) with empty replies four times in a row. The same file downloaded fine a few minutes later, with the right md5. The download function only retried for about 30 seconds in total. **Fix:** six tries over about 2 minutes. Resumed with `--from 08`.
+- **08 to 12 then ran without errors**: 08 15.8 min, 09 0.5, 10 0.1, 11 12.9 (reads the FTO slice of 111 bigWigs from recount3; the known "parallel calls did not deliver" warning appeared and the script's one-at-a-time retry filled the gaps), 12 1.4.
+- **Reproducibility:** 92 of the 97 committed CSV tables, 29 of the 38 figures and 9 of the 11 per-script session info files came back byte for byte identical. The differences:
+  - **The Session 2 QC outputs (5 tables, 8 figures).** `03_qc.R` read only `main_cohort` samples. That was 277 in Session 2, but after BA2294R was dropped in Session 3 a rerun used 276, so the sex check no longer showed the mismatch that was the reason for dropping it. Session 3 noted that the QC files hadn't been rerun, but not that a rerun would change them. **Fix:** `03_qc.R` now checks the cohort as it was before QC exclusions (main cohort plus the one `QC_excluded` sample). With that, all 13 QC files come back identical. No analysis uses anything from 03, so nothing else changes.
+  - `figures/11_fto_window_tests.png`: the two legend groups came out in the other order. Same data, same table; the committed figure was kept.
+  - Session info for 08 and 12: same package versions, only the load order and extra packages loaded because this run had to download (08) or rebuild the quartiles from the counts (12).
+  - `results/sessionInfo.txt` isn't written by any script: it's the Session 1 setup snapshot, kept as history.
+
+*Final pass* (all fixes in, one uninterrupted run): FINAL_RUN_PLACEHOLDER
+
+**Key numbers**
+- Gene lookup: 19,654 genes; 17,681 have a TCGA result and 1,973 show "not tested in TCGA" (no matching ID in GENCODE v36, or too few reads for TCGA's filter). 3,265 genes with a TCGA result carry a different symbol there (DUSP27 is STYXL2); the page says so under the table. `docs/` is 8.4 MB.
+- Phone check (Chromium, 390 px wide) on HOXA9, DUSP27, SPON1 (not in TCGA), IGF1 (in neither model), TSPAN6 and FTO: page width 390 = screen width (no sideways scrolling), the chart is 358 px, exactly the column width, and the table fits in the same 358 px. Same at 1280 px. No console errors.
+- `renv.lock`: 127 packages. A test restore of three packages into an empty library (two CRAN, one Bioconductor) installed the locked versions.
+
+**What I should understand**
+- *Why a clean run matters.* Committed results only prove the code worked once, on one machine, in whatever order things happened. Deleting every output and rebuilding from the scripts alone is the only way to know that the scripts, not leftover files, produce the results. It found one real gap (the QC files) that eleven sessions of normal work didn't.
+- *Byte-for-byte identical* is a strong result: the same seed, the same package versions and the same data give exactly the same numbers, down to the last digit and the last pixel of most figures.
+- *What renv does.* `renv.lock` is a list of every package with its exact version and where it came from. `renv::restore()` reads it and installs those versions into a library for this project only, so a future R or package update can't silently change the results. The lockfile doesn't contain the packages themselves; restore downloads them again, which is why it needs the internet and can be slow when packages compile from source.
+- *Why the TCGA column says "not tested" rather than "not significant".* A gene missing from TCGA has no result at all, which is different from being tested and not changed. Most missing genes are lowly expressed ones that didn't pass TCGA's low-count filter.
+
+**Open questions**
+1. The README placeholders (Summary, Background, Question and hypothesis, Interpretation, Limitations, Next steps, AI use) and the overview summary box on the web page are yours to write. The updated candidate list at the top of this file is meant as raw material for Limitations and Next steps.
+2. GitHub Pages: once this pull request is merged and the repo is public, the steps in Session 11 switch it on.
+3. A full `renv::restore()` on a fresh machine hasn't been done (it compiles about 127 packages). Worth doing once if anyone else will rerun this.
+
+**Deviations**
+- *Extra fixes found by the clean run, not asked for:* `03_qc.R` now QCs the pre-QC cohort (277), and `08_tcga_replication.R` retries GDC downloads for longer. Both only change how the scripts run; no analysis result changed (checked byte for byte).
+- *The clean run was stricter than "a fresh checkout":* it also deleted every committed output, so cached lookups (Ensembl chrY list, van Galen genes, FTO-locus genes, the site quartiles) were rebuilt from their sources.
+- *Packages installed:* `cloud_setup.sh` hadn't fully run in this container (pROC, survival, recount3 and rtracklayer were missing), so it was run first; it now also installs jsonlite, tidyr and renv. BiocManager and BiocVersion were installed from r2u too, because renv needs them to record Bioconductor packages.
+- *`renv.lock` from an explicit package list* (`setup/renv_snapshot.R`) rather than renv's code scan, which misses apeglm. The project isn't switched to an renv library: scripts keep using the normal R library, so `cloud_setup.sh` still works as before. clusterProfiler and org.Hs.eg.db are installed by `cloud_setup.sh` but no script uses them, so they aren't in the lockfile.
+- *README edits beyond Results:* the Data section's "Please cite the Beat AML papers" list had picked up three papers that aren't Beat AML papers (TCGA 2013, Pei 2020, Schoenfeld 1983); they're still in References, but the citation list now has only Bottomly 2022 and Tyner 2018. Added a TCGA-LAML data paragraph, three Beat AML files missing from the file table (cell-type scores, drug AUC, drug families), van Galen et al. 2019 to References, and put Wilks et al. in alphabetical order. The sections you're writing weren't touched.
+- *Lookup wording:* the call badges are shortened to "Higher", "Lower" and "Not changed" so two cohorts fit side by side on a phone; a line above the table says what they mean. The lookup footer now credits TCGA-LAML as well.
+- *Author line* is plain text without "By" in front, exactly as you wrote it.
+- *Limitations and next steps* are a new list near the top of this file, rather than edits to the Session 5 list, which is kept as it was with a pointer to the new one.
