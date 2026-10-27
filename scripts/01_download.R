@@ -16,15 +16,21 @@ files <- c(
   sample_mapping  = "beataml_waves1to4_sample_mapping.xlsx",
   mutations       = "beataml_wes_wv1to4_mutations_dbgap.txt",
   drug_auc        = "beataml_probit_curve_fits_v4_dbgap.txt",
-  norm_expression = "beataml_waves1to4_norm_exp_dbgap.txt"
+  norm_expression = "beataml_waves1to4_norm_exp_dbgap.txt",
+  # Malignant cell-type scores (Bottomly et al. 2022, van Galen et al. 2019
+  # signatures), added in Session 6 for scripts/07_cell_composition.R
+  celltype_scores = "beataml2_manuscript_vg_cts.xlsx"
 )
 
 # github.com/raw redirects to the real LFS file. media.githubusercontent.com
 # is where that redirect lands, and we use it as a fallback in case
 # github.com itself is blocked (some cloud sandboxes do this).
+# A few small files (the cell-type scores) are plain git files, not LFS, so
+# the LFS media URL gives a 404 for them; raw.githubusercontent.com serves those.
 urls_for <- function(f) c(
   paste0("https://github.com/biodev/beataml2.0_data/raw/main/", f),
-  paste0("https://media.githubusercontent.com/media/biodev/beataml2.0_data/main/", f)
+  paste0("https://media.githubusercontent.com/media/biodev/beataml2.0_data/main/", f),
+  paste0("https://raw.githubusercontent.com/biodev/beataml2.0_data/main/", f)
 )
 
 is_lfs_pointer <- function(path) {

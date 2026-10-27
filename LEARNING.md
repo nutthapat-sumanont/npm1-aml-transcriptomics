@@ -349,3 +349,43 @@ Report only. Nothing filtered, DESeq2 model untouched. The high/low split is the
 - *README extras not asked for:* a table of the data files used, a cohort paragraph in Data, a References section, and a line in the CC-BY-4.0 attribution saying the data are used unchanged apart from our filtering and that the Beat AML team doesn't endorse this project. The Verhaak UP caption also gives the DN result.
 - *Fixed a wrong citation in a code comment:* `05_enrichment.R` said Verhaak et al. 2005 was in *Haematologica*; it's *Blood* 2005;106:3747-3754. All five references in README.md were checked against PubMed.
 - *`data/` re-downloaded* with `scripts/01_download.R` at the start of this session (new container); nothing in it is committed.
+
+## Session 6 (2026-10-27): how much of the NPM1 signal is cell maturity? (`scripts/07_cell_composition.R`)
+
+*In progress: steps 1 and 2 done; waiting for your OK on which scores go into the sensitivity DESeq2 (step 3).*
+
+**What we did, step by step**
+1. **Added `beataml2_manuscript_vg_cts.xlsx` to `scripts/01_download.R`.** This file is a normal git file in the Beat AML repo, not a Git LFS file, so the LFS media URL gives a 404. Added `raw.githubusercontent.com` as a third fallback URL. All 7 files download and none is an LFS pointer.
+2. **Read how the scores were made** (Bottomly et al. 2022, STAR Methods, "Cell-type Scores") and fetched the gene lists (van Galen et al. 2019, Table S3), saved as `results/van_galen_top30_genes.csv`.
+3. **Compared the six scores** between NPM1-mutated and wild-type, and between NEK10/FTO/USP44-high and -low NPM1-mutated samples. Figure `figures/07_celltype_scores.png`.
+
+**What the scores are**
+- van Galen et al. sequenced single cells from AML bone marrow and trained a classifier that labels each malignant cell as one of six types along the normal blood hierarchy: **HSC-like** (stem cell), **Progenitor-like**, **GMP-like** (granulocyte-monocyte progenitor), **Promono-like** (promonocyte), **Monocyte-like** and **cDC-like** (conventional dendritic cell). For each type they listed the top 30 marker genes.
+- Bottomly et al. turned each 30-gene list into one number per bulk sample: centre and scale each gene, separately for bone marrow and for blood samples, then take the first principal component of the 30 genes (like a WGCNA eigengene), flipped so that higher = higher average expression of the markers. Waves 1+2 were scored first and Waves 3+4 were projected onto the same PCs.
+- So a score means "how much does this sample look like cell type X, compared with other Beat AML samples of the same specimen type". It is **not** a percentage of cells, and scores sit around 0 (roughly -10 to +9).
+- Signature genes worth knowing: **MEIS1 is one of the 30 HSC-like genes** (and so is KMT2A). The cDC-like list is mostly HLA class II genes (HLA-DRA, HLA-DRB1, HLA-DQ/DP). The GMP-like list contains **TRH (our rank 2 gene) and POU4F1 (rank 29)**. HOXA9, HOXA10, PBX3 and CD34 are not in any list.
+
+**Key numbers**
+- File: 560 samples x 6 scores, exactly the samples with `manuscript_rnaseq = "yes"` in the clinical file.
+- **270 of 276 main-cohort samples have scores: 97 of 100 NPM1-mutated, 173 of 176 wild-type** (38 of 39 high, 59 of 61 low). The 6 without: 5 are the wave "Both" samples (Bottomly scored none of those) and BA2644R (patient 2280; Bottomly used that patient's blood sample BA2011R, we kept the bone marrow one).
+- **NPM1-mutated vs wild-type** (Glass's delta = mean difference in wild-type SDs; BH across six):
+
+| Score | Median wt | Median mut | Glass d | padj |
+|---|---|---|---|---|
+| HSC-like | 0.36 | -0.69 | -0.75 | 4e-07 |
+| Progenitor-like | 0.35 | 1.42 | +0.06 | 0.13 |
+| GMP-like | 0.19 | -0.53 | -0.24 | 0.017 |
+| Promono-like | -0.23 | 1.33 | +0.54 | 7e-05 |
+| Monocyte-like | 1.17 | 0.45 | -0.02 | 0.70 |
+| cDC-like | 0.88 | -1.60 | -0.87 | 1e-05 |
+
+- **NPM1-high vs NPM1-low:** high has more Progenitor-like (d +0.66, padj 0.004) and much less Monocyte-like (d -1.22, padj 8e-07) and cDC-like (d -1.84, padj 2e-10); Promono-like lower (padj 0.015). HSC-like and GMP-like don't differ.
+- The six scores are correlated (Progenitor vs Monocyte -0.80; GMP vs Promono +0.62); one PC explains 52% of their variance.
+- **The six scores together predict NPM1 status with AUC 0.93** (logistic regression, in-sample). One at a time: 0.51 to 0.70. HSC-like + Monocyte-like: 0.75. GMP-like + Promono-like: 0.80.
+
+**What I should understand**
+- *NPM1-mutated AML looks less stem-like and more promonocyte-like*, with low cDC-like (HLA class II) signal. That matches what's known: NPM1-mutated AML is often CD34-negative and HLA-DR-low with monocytic features, and Bottomly et al. themselves report NPM1 enriched for Promono-like. Good sanity check.
+- *The primitive-like (high) group isn't "more HSC-like".* It is Progenitor-like and lacks the mature monocyte/cDC signal. Committed-like (low) samples are the monocytic ones. So "primitive vs committed" in Mer et al. is mostly a progenitor-vs-monocytic split inside NPM1-mutated AML.
+- *Why AUC 0.93 matters for step 3.* If the scores together almost tell you who is NPM1-mutated, putting all six in the model leaves little NPM1 variation for DESeq2 to work with. Whatever is left would be the part of NPM1 biology that doesn't show up as cell-type shift, which is a much narrower question than "is NPM1 real".
+
+**Open question (step 3, needs your OK)**: which scores to add to the DESeq2 design. See the proposal in the chat / PR.
