@@ -194,7 +194,7 @@ Inside NPM1-mutated AML, the NEK10/FTO/USP44-high (primitive-like) group did wor
 | `scripts/11_fto_locus.R` | FTO vs IFEX9: read coverage and splice junctions along FTO in TCGA-LAML (recount3), plus FTO-locus genes in Beat AML | `results/fto_*.csv`, `figures/11_*.png` |
 | `scripts/12_build_site.R` | Data files for the web page: per-gene quartiles by group (needs `data/` only if the CSV is missing), the gene lookup JSON, figure copies | `results/site_gene_group_quartiles.csv`, `docs/data/genes.json`, `docs/figures/` |
 
-The full run takes roughly 30 minutes plus download time. `run_all.R` hasn't yet been tested from a clean checkout. Each script saves its `sessionInfo()` to `results/`.
+`run_all.R` runs each script in its own R process, stops at the first failure (resume with `Rscript scripts/run_all.R --from 08`, for example) and writes how long each script took to `results/run_all_timings.csv`. In Session 12 it ran from a fresh clone with every output deleted in **37.5 minutes** on a 4-core machine. About 60% of that is the two scripts that download TCGA data (08, about 650 MB from GDC; 11, the FTO slices from recount3), so it depends on how busy those servers are. Every result table came back identical to the committed one. Each script saves its `sessionInfo()` to `results/`.
 
 ## AI use
 

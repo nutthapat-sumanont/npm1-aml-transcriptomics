@@ -1111,7 +1111,10 @@ Done in a fresh clone of this branch with no `data/`, and with every generated f
   - Session info for 08 and 12: same package versions, only the load order and extra packages loaded because this run had to download (08) or rebuild the quartiles from the counts (12).
   - `results/sessionInfo.txt` isn't written by any script: it's the Session 1 setup snapshot, kept as history.
 
-*Final pass* (all fixes in, one uninterrupted run): FINAL_RUN_PLACEHOLDER
+*Final pass* (all fixes in, a second fresh clone with every output deleted, one uninterrupted run):
+- **All 13 scripts ran without errors in 37.5 minutes** on a 4-core cloud machine (`results/run_all_timings.csv`): 01 0.5, 02 0.0, 03 0.6, 04 3.3, 05 2.8, 06 0.4, 06b 1.8, 07 4.1, 08 9.6, 09 0.5, 10 0.1, 11 12.6, 12 1.3 min. The two scripts that download TCGA data (08 from GDC, 11 from recount3) take about 60% of the time, and their speed depends on those servers: 08 took 15.8 min in the first pass.
+- **All 97 committed CSV tables came back byte for byte identical**, the QC tables included. 37 of 38 figures were identical; the one exception is the legend order in `11_fto_window_tests.png` again. The site data (`docs/data/genes.json`, the 10 site figures) were identical too. Session info files differ only in whether `curl` was loaded (same package versions).
+- **Nothing failed.**
 
 **Key numbers**
 - Gene lookup: 19,654 genes; 17,681 have a TCGA result and 1,973 show "not tested in TCGA" (no matching ID in GENCODE v36, or too few reads for TCGA's filter). 3,265 genes with a TCGA result carry a different symbol there (DUSP27 is STYXL2); the page says so under the table. `docs/` is 8.4 MB.

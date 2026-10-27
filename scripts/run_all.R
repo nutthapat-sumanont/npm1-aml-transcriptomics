@@ -9,8 +9,8 @@
 # To pick up again after a failure without redoing the earlier steps:
 #   Rscript scripts/run_all.R --from 08
 #
-# Takes about 50 minutes on a 4-core cloud machine, most of it downloads
-# (Beat AML ~500 MB, TCGA-LAML ~650 MB from GDC, FTO slices from recount3).
+# Took 37.5 minutes from scratch on a 4-core cloud machine in Session 12, about
+# 60% of it in 08 and 11, which download TCGA-LAML data (GDC, recount3).
 
 scripts <- c(
   "scripts/01_download.R",           # Beat AML 2.0 files into data/
