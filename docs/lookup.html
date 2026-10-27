@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>NPM1-mutated AML: gene lookup</title>
-<meta name="description" content="Look up any gene: expression in NPM1-mutated, KMT2A-rearranged and other AML (Beat AML 2.0), plus its DESeq2 result.">
+<meta name="description" content="Look up any gene: expression in NPM1-mutated, KMT2A-rearranged and other AML (Beat AML 2.0), plus its NPM1-mutated vs wild-type DESeq2 result in Beat AML and TCGA-LAML.">
 <link rel="stylesheet" href="assets/style.css">
 <script src="https://cdn.plot.ly/plotly-cartesian-2.35.2.min.js" charset="utf-8" defer></script>
 <script src="assets/lookup.js" defer></script>
@@ -27,7 +27,7 @@
 <main>
   <div class="wrap">
     <h1>Gene lookup</h1>
-    <p class="lede">Type a gene symbol or Ensembl ID to see its expression in NPM1-mutated, KMT2A-rearranged and other AML, and its NPM1-mutated vs wild-type DESeq2 result.</p>
+    <p class="lede">Type a gene symbol or Ensembl ID to see its expression in NPM1-mutated, KMT2A-rearranged and other AML, and its NPM1-mutated vs wild-type DESeq2 result in Beat AML and in the TCGA-LAML replication cohort.</p>
 
     <form class="search" role="search" autocomplete="off" onsubmit="return false">
       <label for="q" class="small">Gene symbol or Ensembl ID</label>
@@ -58,6 +58,7 @@
       <p class="small" id="g-expr-text"></p>
 
       <h3>DESeq2: NPM1-mutated vs wild-type</h3>
+      <p class="small">Call = padj &lt; 0.05 and |log2FC| &gt; 1, the same rule in both cohorts. Positive log2FC = higher in NPM1-mutated AML.</p>
       <div id="g-de"></div>
     </section>
 
@@ -66,13 +67,17 @@
       <li><b>Box plot.</b> Expression is DESeq2 variance-stabilised counts (VST, roughly log2), computed blind to group on the 276 main-cohort samples plus the 24 KMT2A-rearranged cases, the same values as the HOXA9 / MEIS1 figure on the overview. The box is the middle half of samples (25th to 75th percentile), the line is the median, and the whiskers reach the most extreme sample within 1.5 box-lengths. Individual samples aren't shown; the page only stores these summaries.</li>
       <li><b>Groups.</b> NPM1-mutated (n = 100) and other AML (n = 176) make up the main cohort. KMT2A-rearranged (n = 24) is shown for comparison only; 2 of those cases also carry an NPM1 mutation.</li>
       <li><b>DESeq2.</b> Main model <code>~ wave + specimen_type + sex + NPM1_status</code> on the 276 main-cohort samples, NPM1 wild-type as reference. log2FC is apeglm-shrunken: +1 means about 2x higher in NPM1-mutated AML. A gene counts as changed at padj &lt; 0.05 and |log2FC| &gt; 1. Rank is by the absolute Wald statistic, 1 = most significant of 19,398. KMT2A-rearranged cases are not in this model.</li>
+      <li><b>TCGA-LAML.</b> The replication cohort (NEJM 2013 data from the NCI Genomic Data Commons), filtered the same way as Beat AML: 111 patients, 31 NPM1-mutated and 80 wild-type. Model <code>~ sex + NPM1_status</code> (TCGA has no sequencing waves, and GDC gives every sample the same specimen type, so neither can be adjusted for), apeglm-shrunken log2FC, same cut-offs. Rank is out of the 26,069 genes TCGA tested. Genes are matched on the Ensembl ID, because many symbols changed between Ensembl 75 and GENCODE v36. &ldquo;Not tested in TCGA&rdquo; means the ID isn't in GENCODE v36 or the gene didn't pass TCGA's low-count filter (at least 10 reads in at least 31 samples).</li>
       <li><b>Missing genes.</b> Only genes with at least 10 reads in at least 100 samples are included. Symbols come from Ensembl 75 (2014), so a renamed gene may need its old symbol or its Ensembl ID.</li>
     </ul>
   </div>
 </main>
 
 <footer class="site">
-  <div class="wrap">Data: Beat AML 2.0 (CC-BY-4.0; Bottomly et al., <em>Cancer Cell</em> 2022; Tyner et al., <em>Nature</em> 2018). Built by <code>scripts/12_build_site.R</code>. Code: <a href="https://github.com/beckyzaza/npm1-aml-transcriptomics">github.com/beckyzaza/npm1-aml-transcriptomics</a>.</div>
+  <div class="wrap">
+    <p><a href="https://github.com/Beckyzaza" rel="author">Nutthapat Sumanont, BSc student, The University of Hong Kong</a></p>
+    <p>Data: Beat AML 2.0 (CC-BY-4.0; Bottomly et al., <em>Cancer Cell</em> 2022; Tyner et al., <em>Nature</em> 2018) and TCGA-LAML (NCI Genomic Data Commons). Built by <code>scripts/12_build_site.R</code>. Code: <a href="https://github.com/beckyzaza/npm1-aml-transcriptomics">github.com/beckyzaza/npm1-aml-transcriptomics</a>.</p>
+  </div>
 </footer>
 </body>
 </html>

@@ -17,10 +17,124 @@ Each session has one number, used in this log, CLAUDE.md and the script headers.
 | 9 | 2026-10-27 | Survival (exploratory) | `10_survival.R` | #8 |
 | 10 | 2026-10-27 | FTO vs IFEX9 (TCGA coverage) | `11_fto_locus.R` | #9 |
 | 11 | 2026-10-27 | Project web page (GitHub Pages) | `12_build_site.R` | #10 |
+| 12 | 2026-10-27 | Final session: README results, clean run, renv, TCGA in the gene lookup | `run_all.R`, `12_build_site.R`, `setup/renv_snapshot.R` | #11 |
 
 Three early commit messages carry the wrong number. They were already pushed, so they were left as they are rather than rewriting history:
 - `bb97e57` says "Session 6" but belongs to Session 7 (TCGA).
 - `bde346d` and `a448bd6` say "Session 9" but belong to Session 10 (FTO vs IFEX9).
+
+## Results at a glance
+
+One row per finding, with the number to remember and the figure that shows it (all in `figures/`). Details are in the session entries below.
+
+| Session | Finding | Key number | Figure |
+|---|---|---|---|
+| 1, 2 | Main cohort: de novo AML at diagnosis, no APL or KMT2A fusions, one possible sample swap dropped | 276 patients: 100 NPM1-mutated, 176 wild-type | `03_pca_npm1.png` |
+| 2 | NPM1 status is the biggest structured signal in the data; no batch effect by wave or specimen | NPM1 explains 43% of PC2; wave and specimen type < 5% of any PC | `03_pca_npm1.png` |
+| 2 | Recorded sex vs expression: one mismatch (BA2294R), dropped | 276 of 277 agree | `03_sex_check.png` |
+| 3 | Differential expression, NPM1-mutated vs wild-type | 1,019 genes at padj < 0.05 and abs(log2FC) > 1: 307 up, 712 down | `04_volcano.png` |
+| 3 | Positive controls all pass | HOXA9 +1.60, HOXA10 +1.51, MEIS1 +1.60, PBX3 +1.91, HOXB2-9 +1.35 to +3.10, CD34 -4.00 | `04_volcano.png` |
+| 3 | The top 50 genes put NPM1-mutated samples in one branch | 11 of the top 50 up, 38 down | `04_heatmap_top50.png` |
+| 3 | Robust to adding FLT3-ITD to the model | 42 of top 50 stay in the top 50; log2FC r = 0.98 | none (`results/deseq2_sensitivity_flt3_summary.csv`) |
+| 4 | The published Verhaak NPM1 signature is reproduced | UP NES +3.31 (FDR 2.4e-36); DN NES -3.76 (FDR 1.4e-96) | `05_gsea_verhaak_up.png`, `05_gsea_verhaak_dn.png` |
+| 4, 5 | GO BP: HOX terms (and cilium terms) up; MHC class II and cell cycle down | 468 terms at FDR < 0.05, 154 after collapsing | `05_gsea_dotplot_gobp_collapsed.png` |
+| 4 | Every significant Hallmark set is down | 23 of 49 at FDR < 0.05, all down | `05_gsea_dotplot_hallmark.png` |
+| 4 | NPM1-mutated and KMT2A-rearranged AML share high HOXA9 and MEIS1 | Median HOXA9 12.2 vs 12.3 (p = 0.42), about 2.7 above other AML | `05_three_group_hoxa9_meis1.png` |
+| 4, 8 | A NEK10/FTO/USP44-high group inside NPM1-mutated AML | 37 high, 63 low (three-gene k-means); bimodality coefficient 0.73 | `05_block_nek10_fto_usp44_wdr86.png` |
+| 5, 8 | The high group is the Mer et al. "primitive" subtype | 32 of 37 high primitive-like, 54 of 63 low committed-like; primitive score vs core score Spearman 0.91 | `06_subgroup_primitive_committed.png` |
+| 5, 8 | Co-mutations: TET2 and IDH2 in the high group, RAS pathway and DNMT3A in the low group | TET2 33% vs 11%, IDH2 39% vs 13%; NRAS and PTPN11 0% vs 20% and 25% | none (`results/subgroup_comutations.csv`) |
+| 5, 8 | The HOX program is shared by both subgroups; NEK10, FTO, USP44 rise only in the high group | Of 1,019 genes: 521 shared, 381 mostly high, 117 mostly low | `06_subgroup_shared_vs_specific.png` |
+| 6 | NPM1-mutated AML is less HSC-like and cDC-like, more promonocyte-like | Glass's d: HSC-like -0.75, cDC-like -0.87, Promono-like +0.54 | `07_celltype_scores.png` |
+| 6 | Cell maturity explains only a small part of the NPM1 signal (two-score model; all six scores is an upper bound only) | log2FC r = 0.89, average 0.85x; 49 of top 50 still significant; HOXA9 105%, CD34 97% of size | `07_celltype_adjusted_lfc.png` |
+| 7 | The Beat AML signature separates NPM1-mutated from wild-type in TCGA-LAML | ROC AUC 0.992 (95% CI 0.981 to 1.000), 111 patients | `08_tcga_signature_score_roc.png` |
+| 7 | Fold changes agree between cohorts | Pearson r 0.74 (all 17,498 shared genes), 0.84 (Beat AML significant genes); 95.4% same direction; 48 of 49 top genes significant again | `08_tcga_lfc_vs_beataml.png` |
+| 7 | The three-group HOXA9 / MEIS1 picture replicates | TCGA median HOXA9 11.3 (NPM1-mut) vs 11.3 (KMT2A-r) vs 8.6 (other) | `08_tcga_three_group_hoxa9_meis1.png` |
+| 7 | The NEK10/FTO/USP44 module replicates, with a smaller high group | Pairwise Spearman 0.72 to 0.76; 6 of 31 high (19%) | `08_tcga_block_nek10_fto_usp44_wdr86.png` |
+| 8 | NPM1 status alone barely changes ex vivo drug response | 0 of 123 drugs at FDR < 0.05 | `09_drug_volcano.png` |
+| 8 | Venetoclax: primitive-like NPM1 AML far more sensitive; monocyte-like score drives resistance | Median AUC 65 vs 204 (FDR 8e-6); +13 AUC per monocyte-like unit | `09_venetoclax.png` |
+| 8 | The Mer et al. kinase-inhibitor result doesn't come back clearly | Sunitinib FDR 0.32, sorafenib 0.41, quizartinib 0.99 | `09_subgroup_kinase_inhibitors.png` |
+| 8 | No menin (or DOT1L) inhibitor in the Beat AML drug panel | 0 of 166 drugs | none (`results/drug_menin_check.csv`) |
+| 9 | NPM1-mutated AML without FLT3-ITD (ELN 2022 favorable) survives longer | HR 0.41 (0.25 to 0.67) vs everyone else, age-adjusted | `10_km_npm1_flt3.png` |
+| 9 | Survival of the NEK10/FTO/USP44 group is inconclusive | HR 1.19 (0.64 to 2.21), adjusted for age and FLT3-ITD; 25% power for HR 1.5 | `10_km_nek10_fto_usp44.png` |
+| 10 | The "FTO" rise is IFEX9, a transcript starting in FTO intron 8 | IFEX9 exon 1 mean coverage 238 vs 4; exon 9 about 12-fold up; exons 1-8 not higher; IFEX9 junction reads 61 to 434 in all 6 high samples | `11_fto_coverage.png` |
+| 11, 12 | Project web page with a gene lookup (Beat AML and TCGA side by side) | 19,654 genes; 17,681 with a TCGA result; `docs/` 8.4 MB | none (`docs/`) |
+
+## Candidate limitations and next steps (updated in Session 12, all sessions)
+
+This replaces the Session 5 list as the one to use for the README's Limitations and Next steps.
+
+**Candidate limitations**
+
+*Data and cohort*
+- Observational data: associations, not cause and effect.
+- Cohort limited to de novo AML at diagnosis; results may not carry over to secondary, therapy-related or relapsed AML.
+- Bulk RNA-seq mixes leukaemic and non-leukaemic cells. The cell-type scores only describe the malignant hierarchy; T cells, B cells and other normal cells aren't separated, and blast percentage isn't in any model.
+- NPM1 status is the clinical consensus call; the exome detects NPM1 in only 81 of 97 NPM1-mutated samples, so the exome can't fully cross-check it.
+- KMT2A-PTD isn't tested consistently in Beat AML; 8 wild-type samples with PTD in their notes stay in the main cohort.
+- Sex is unbalanced (64% female in NPM1-mutated vs 41% in wild-type); chrY genes and XIST had to be removed before enrichment, and one female sample (BA3206R) has partial Y expression.
+- One sample dropped as a possible swap (BA2294R); others could exist that the sex check can't catch.
+- Batch: the wave "Both" level has only 5 samples, and none of them has cell-type scores.
+- Old gene annotation in Beat AML (Ensembl 75, GRCh37, 2014 symbols), and only gene-level counts are open, so FTO and IFEX9 can't be separated in Beat AML itself.
+
+*Main analysis*
+- Thresholds are choices: padj < 0.05 with abs(log2FC) > 1, the low-count filter (10 reads in 100 samples), the 2x rule for "shared vs mostly one subgroup", the 20-per-group rule for drugs, the k-means splits.
+- Age, ELN risk and blast percentage aren't in the DESeq2 model.
+- GSEA: gene sets overlap; Hallmark sets lean "down" as a group in our ranking; FDR is corrected within each collection, not across all of them. The cilium terms are unexplained.
+
+*Subgroup*
+- The NEK10/FTO/USP44 group was found in the same data it's tested in; the k-means split and the bimodality (coefficient 0.73) are modest evidence of two clean groups. The definition changed once (four genes to three, Session 8), which moved 4 samples.
+- The primitive/committed call uses 11 marker genes, an approximation of Mer et al.'s method; both scores come from the same RNA-seq.
+- Co-mutation tests rest on small numbers (36 vs 61 with exome data); the exome may miss subclonal mutations; FLT3-ITD comes from a clinical assay.
+- TET2, IDH1 or IDH2 in the high group is a consistency check, not an independent test: the grouping was formed after looking at TCGA, partly from Beat AML itself.
+
+*Cell maturity (Session 6)*
+- Maturity is partly a consequence of NPM1 (a mediator), not only a confounder, so adjusting for it can remove real NPM1 biology (CD34 is the clearest case).
+- The scores are built from the same RNA-seq, so a gene inside a signature is adjusted for itself (MEIS1 in HSC-like; TRH and POU4F1 in GMP-like).
+- Only 270 of 276 samples have scores, so wave has two levels in those models. The all-six model is an upper bound only (the scores predict NPM1 with AUC 0.93).
+
+*Replication in TCGA-LAML (Session 7)*
+- TCGA is small (31 NPM1-mutated, 80 wild-type, 9 KMT2A-rearranged) and came from a single centre with younger patients.
+- Different genome build and annotation (GRCh38, GENCODE v36); 96.4% of Beat AML genes match by Ensembl ID, so a few genes can't be compared.
+- NPM1 calls needed a rule where the paper and the clinical test disagree (3 patients dropped), and the KMT2A FISH cut-off (20% of cells) was set by looking at the data.
+- The model has no batch terms (TCGA has no waves; plate was checked by PCA only).
+- The high group is smaller in TCGA (19% vs 37%), and the co-mutation pattern differs (mainly IDH1 in TCGA, TET2 and IDH2 in Beat AML).
+
+*Drug response (Session 8)*
+- Ex vivo, 3-day, single-drug AUC isn't clinical response (no bone marrow environment, no combinations such as venetoclax + azacitidine).
+- Only 211 of 276 main-cohort samples have drug data on the same specimen (206 in the analysis set); many drugs were tested on fewer samples and 42 were skipped.
+- NPM1-mutated cells have lower AUC for most drugs (90 of 123), which may be a general survival-in-the-dish effect rather than anything drug-specific.
+- Subgroup and HOX-score drug results are report only, from a split found in the same data, and largely the same patients as Mer et al. used.
+- No menin or DOT1L inhibitor in the panel, so the menin hypothesis can't be tested with drug data.
+
+*Survival (Session 9)*
+- Treatment varied a lot and isn't modelled; transplant can't be used as a simple yes/no variable (immortal time bias).
+- Underpowered within NPM1-mutated AML: 44 deaths give 25% power for HR 1.5; TCGA (22 deaths, 2 in the high group) gives almost no information.
+- Time zero was inferred from the data, not the data dictionary; ELN 2022 risk isn't available (only ELN 2017); the proportional hazards assumption is borderline for age and for the high vs low term.
+
+*FTO vs IFEX9 (Session 10)*
+- Only 6 high samples in TCGA; the coverage is unstranded (the junctions give the strand); recount3 uses GENCODE v26, not the v36 used in Session 7.
+- Whether IFEX9 drives anything or is only a marker of the primitive state is unknown.
+
+*Reproducibility and the web page (Sessions 11, 12)*
+- `renv.lock` records exact versions, but a full `renv::restore()` from source was only tested for a few packages, and `setup/cloud_setup.sh` installs the newest r2u binaries, which can drift from the lockfile over time.
+- The pipeline downloads from GitHub, GDC, cBioPortal, recount3 and Ensembl; if any of them changes or goes offline, a rerun can fail or differ.
+- The gene lookup shows quartiles only (no per-sample values); its KMT2A-rearranged box is for comparison and isn't in any model; "not tested in TCGA" covers both "no matching ID" and "too few reads".
+
+**Candidate next steps**
+- Test published menin-inhibitor response signatures (genes that fall after revumenib or VTP-50469) against our NPM1 and subgroup rankings; the gene lists have to come from papers. Or use a dataset with menin-inhibitor response (cell-line screens or newer patient cohorts).
+- Test "TET2, IDH1 or IDH2 in the high group" in a third cohort (for example Leucegene) as a stated hypothesis.
+- IFEX9: check DNA methylation at IFEX9 exon 1 in TCGA (450k arrays); define the subgroup by IFEX9 directly in TCGA; look at the 2 wild-type samples that express IFEX9 and whether IFEX9 is on/off or a dial.
+- Replicate the venetoclax, MEK and panobinostat subgroup differences in independent ex vivo data (for example FIMM / Helsinki, or the Kuusanmäki et al. venetoclax screen); check venetoclax within FLT3-ITD-negative cases and by specimen type.
+- Drug data: correct for each sample's general sensitivity (its average AUC across drugs); consider adding the 4 wild-type patients with diagnostic drug data on another specimen.
+- Survival: a landmark analysis from day 60 (separating early deaths), a pooled Beat AML + TCGA model stratified by cohort, ELN 2022 risk groups, or a larger published cohort (Mer et al.).
+- Deconvolution that includes non-leukaemic cells (CIBERSORTx-style), as a second way to ask the cell-mix question; adjust for blast percentage or NPM1 VAF as a purity proxy.
+- Look at the genes that fall most with cell-type adjustment (CLIP3, FGD5, CLEC9A).
+- The two TCGA wild-type samples with an NPM1-like score (TCGA-AB-2851, 2873): a missed NPM1 mutation, or NPM1-like AML without it?
+- Identify the HOXA9-high "other AML" cases (KMT2A-PTD, NUP98 fusions, other lesions?).
+- Check why CD34 is lower in the primitive-like group than in the committed-like group, against Mer et al.
+- Look into the cilium terms (leading-edge genes, literature).
+- A full `renv::restore()` on a fresh machine, to prove the lockfile end to end.
+- Switch on GitHub Pages, and write the README and overview placeholders (Summary, Background, Question, Interpretation, Limitations, Next steps, AI use).
 
 ## Session 1 (2026-10-26): setup, download, first look at the cohort
 
@@ -331,6 +445,9 @@ Report only. Nothing filtered, DESeq2 model untouched. The high/low split is the
 - *The cilium terms survive collapsing*, so they aren't just an echo of the HOX terms. Still an open question (Session 4, question 3).
 
 **Candidate limitations (all sessions)**
+
+*(Superseded by the updated list near the top of this file, Session 12. Kept here as it was in Session 5.)*
+
 - Bulk RNA-seq mixes leukaemic and non-leukaemic cells; blast percentage and purity aren't in the model, so some "down" pathways (cell cycle, MHC class II, immune) may reflect cell mix, not gene regulation.
 - One cohort only; apart from the Verhaak gene sets, nothing is validated in an independent dataset.
 - Observational data: associations, not cause and effect.
@@ -966,3 +1083,64 @@ This is the Arza-Apalategi et al. finding, reproduced from raw coverage in the s
 
 **Review fix (after the session, before merge)**
 - *Lookup chart width.* The chart was drawn while its section was still hidden, so Plotly measured the box as 0 px wide and fell back to a fixed 700 px chart. On a 390 px phone screen that made the whole page scroll sideways; on desktop the chart was narrower than the table under it. `docs/assets/lookup.js` now unhides the section before drawing. If Plotly can't load, the chart box also shrinks to fit the message, so there's no empty gap above the numbers. Checked in a headless browser at 1280 px and 390 px, with and without Plotly.
+
+## Session 12 (2026-10-27): final session, README results, clean run, renv, TCGA in the gene lookup
+
+**What we did, step by step**
+1. **README Results now covers Phase 2.** Two sections were missing and are added, each figure with a caption:
+   - *How much of the NPM1 signal is cell maturity?* (Session 6): `figures/07_celltype_adjusted_lfc.png`, leading with the two-score model; the all-six model is described only as an upper bound.
+   - *Replication in TCGA-LAML* (Session 7): signature score ROC (`08_tcga_signature_score_roc.png`), fold-change agreement (`08_tcga_lfc_vs_beataml.png`) and the three-group plot (`08_tcga_three_group_hoxa9_meis1.png`).
+   - Methods got short paragraphs for cell maturity, TCGA, drugs, survival and the FTO locus, and the software list now matches `renv.lock`.
+   - Every number in the README was checked against `results/` and this log. All matched, apart from one wording slip: the subgroup section said "About 40% (37 of 100)", left over from the old 39 / 61 split; it now says "more than a third".
+2. **`scripts/run_all.R` updated, then the whole pipeline was run from scratch** (details below). It times each script into `results/run_all_timings.csv`, stops if a numbered script in `scripts/` isn't in its list, and can resume after a failure with `Rscript scripts/run_all.R --from 08`.
+3. **Package versions locked with renv.** `renv.lock` lists 127 packages (R 4.6.1, Bioconductor 3.23). `setup/renv_snapshot.R` rewrites it; `setup/renv_snapshot.R --check` compares what's installed with it. README "How to reproduce" now gives both routes (renv for exact versions, `cloud_setup.sh` for fast binaries on Ubuntu 24.04).
+4. **"Results at a glance"** table and an **updated limitations and next-steps list** at the top of this file.
+5. **Web page.** Author line in the footer of all three pages ("Nutthapat Sumanont, BSc student, The University of Hong Kong", linked to github.com/Beckyzaza; no email). The gene lookup now shows the TCGA-LAML result next to the Beat AML one (call, log2FC with SE, fold change, padj, rank), matched on Ensembl `gene_id`, with one merged "Not tested in TCGA" cell when a gene has no TCGA row. Rebuilt with `scripts/12_build_site.R`.
+
+**The clean run**
+
+Done in a fresh clone of this branch with no `data/`, and with every generated file deleted too (all of `results/`, `figures/`, `docs/data/`, `docs/figures/`), so each output had to be made again. Then every regenerated file was compared byte for byte with the committed one.
+
+*First pass* (the code as it was at the start of the session):
+- **01 to 07 ran without errors** (14.5 min). 05 had to fetch the chrY gene list from Ensembl again, because its cached copy was deleted too; that worked.
+- **08 failed** after 4.4 min: GDC answered one TCGA count file (TCGA-AB-2955) with empty replies four times in a row. The same file downloaded fine a few minutes later, with the right md5. The download function only retried for about 30 seconds in total. **Fix:** six tries over about 2 minutes. Resumed with `--from 08`.
+- **08 to 12 then ran without errors**: 08 15.8 min, 09 0.5, 10 0.1, 11 12.9 (reads the FTO slice of 111 bigWigs from recount3; the known "parallel calls did not deliver" warning appeared and the script's one-at-a-time retry filled the gaps), 12 1.4.
+- **Reproducibility:** 92 of the 97 committed CSV tables, 29 of the 38 figures and 9 of the 11 per-script session info files came back byte for byte identical. The differences:
+  - **The Session 2 QC outputs (5 tables, 8 figures).** `03_qc.R` read only `main_cohort` samples. That was 277 in Session 2, but after BA2294R was dropped in Session 3 a rerun used 276, so the sex check no longer showed the mismatch that was the reason for dropping it. Session 3 noted that the QC files hadn't been rerun, but not that a rerun would change them. **Fix:** `03_qc.R` now checks the cohort as it was before QC exclusions (main cohort plus the one `QC_excluded` sample). With that, all 13 QC files come back identical. No analysis uses anything from 03, so nothing else changes.
+  - `figures/11_fto_window_tests.png`: the two legend groups came out in the other order. Same data, same table; the committed figure was kept.
+  - Session info for 08 and 12: same package versions, only the load order and extra packages loaded because this run had to download (08) or rebuild the quartiles from the counts (12).
+  - `results/sessionInfo.txt` isn't written by any script: it's the Session 1 setup snapshot, kept as history.
+
+*Final pass* (all fixes in, a second fresh clone with every output deleted, one uninterrupted run):
+- **All 13 scripts ran without errors in 37.5 minutes** on a 4-core cloud machine (`results/run_all_timings.csv`): 01 0.5, 02 0.0, 03 0.6, 04 3.3, 05 2.8, 06 0.4, 06b 1.8, 07 4.1, 08 9.6, 09 0.5, 10 0.1, 11 12.6, 12 1.3 min. The two scripts that download TCGA data (08 from GDC, 11 from recount3) take about 60% of the time, and their speed depends on those servers: 08 took 15.8 min in the first pass.
+- **All 97 committed CSV tables came back byte for byte identical**, the QC tables included. 37 of 38 figures were identical; the one exception is the legend order in `11_fto_window_tests.png` again. The site data (`docs/data/genes.json`, the 10 site figures) were identical too. Session info files differ only in whether `curl` was loaded (same package versions).
+- **Nothing failed.**
+
+**Key numbers**
+- Gene lookup: 19,654 genes; 17,681 have a TCGA result and 1,973 show "not tested in TCGA" (no matching ID in GENCODE v36, or too few reads for TCGA's filter). 3,265 genes with a TCGA result carry a different symbol there (DUSP27 is STYXL2); the page says so under the table. `docs/` is 8.4 MB.
+- Phone check (Chromium, 390 px wide) on HOXA9, DUSP27, SPON1 (not in TCGA), IGF1 (in neither model), TSPAN6 and FTO: page width 390 = screen width (no sideways scrolling), the chart is 358 px, exactly the column width, and the table fits in the same 358 px. Same at 1280 px. No console errors.
+- `renv.lock`: 127 packages. A test restore of three packages into an empty library (two CRAN, one Bioconductor) installed the locked versions.
+
+**What I should understand**
+- *Why a clean run matters.* Committed results only prove the code worked once, on one machine, in whatever order things happened. Deleting every output and rebuilding from the scripts alone is the only way to know that the scripts, not leftover files, produce the results. It found one real gap (the QC files) that eleven sessions of normal work didn't.
+- *Byte-for-byte identical* is a strong result: the same seed, the same package versions and the same data give exactly the same numbers, down to the last digit and the last pixel of most figures.
+- *What renv does.* `renv.lock` is a list of every package with its exact version and where it came from. `renv::restore()` reads it and installs those versions into a library for this project only, so a future R or package update can't silently change the results. The lockfile doesn't contain the packages themselves; restore downloads them again, which is why it needs the internet and can be slow when packages compile from source.
+- *Why the TCGA column says "not tested" rather than "not significant".* A gene missing from TCGA has no result at all, which is different from being tested and not changed. Most missing genes are lowly expressed ones that didn't pass TCGA's low-count filter.
+
+**Open questions**
+1. The README placeholders (Summary, Background, Question and hypothesis, Interpretation, Limitations, Next steps, AI use) and the overview summary box on the web page are yours to write. The updated candidate list at the top of this file is meant as raw material for Limitations and Next steps.
+2. GitHub Pages: once this pull request is merged and the repo is public, the steps in Session 11 switch it on.
+3. A full `renv::restore()` on a fresh machine hasn't been done (it compiles about 127 packages). Worth doing once if anyone else will rerun this.
+
+**Deviations**
+- *Extra fixes found by the clean run, not asked for:* `03_qc.R` now QCs the pre-QC cohort (277), and `08_tcga_replication.R` retries GDC downloads for longer. Both only change how the scripts run; no analysis result changed (checked byte for byte).
+- *The clean run was stricter than "a fresh checkout":* it also deleted every committed output, so cached lookups (Ensembl chrY list, van Galen genes, FTO-locus genes, the site quartiles) were rebuilt from their sources.
+- *Packages installed:* `cloud_setup.sh` hadn't fully run in this container (pROC, survival, recount3 and rtracklayer were missing), so it was run first; it now also installs jsonlite, tidyr and renv. BiocManager and BiocVersion were installed from r2u too, because renv needs them to record Bioconductor packages.
+- *`renv.lock` from an explicit package list* (`setup/renv_snapshot.R`) rather than renv's code scan, which misses apeglm. The project isn't switched to an renv library: scripts keep using the normal R library, so `cloud_setup.sh` still works as before. clusterProfiler and org.Hs.eg.db are installed by `cloud_setup.sh` but no script uses them, so they aren't in the lockfile.
+- *README edits beyond Results:* the Data section's "Please cite the Beat AML papers" list had picked up three papers that aren't Beat AML papers (TCGA 2013, Pei 2020, Schoenfeld 1983); they're still in References, but the citation list now has only Bottomly 2022 and Tyner 2018. Added a TCGA-LAML data paragraph, three Beat AML files missing from the file table (cell-type scores, drug AUC, drug families), van Galen et al. 2019 to References, and put Wilks et al. in alphabetical order. The sections you're writing weren't touched.
+- *Lookup wording:* the call badges are shortened to "Higher", "Lower" and "Not changed" so two cohorts fit side by side on a phone; a line above the table says what they mean. The lookup footer now credits TCGA-LAML as well.
+- *Author line* is plain text without "By" in front, exactly as you wrote it.
+- *Limitations and next steps* are a new list near the top of this file, rather than edits to the Session 5 list, which is kept as it was with a pointer to the new one.
+
+**Review fix (after the session, before merge)**
+- *"Every TCGA sample is bone marrow" wasn't supported.* The README, the lookup page and a comment in `08_tcga_replication.R` said it, but the same script keeps samples whose GDC type is "Primary Blood Derived Cancer - Peripheral Blood" (the one label GDC gives every TCGA-LAML tumour sample), and GDC's AML case form accepts either bone marrow or blood. So the real source of each TCGA sample isn't recorded per sample. The wording now says what we know: GDC gives every sample the same specimen type, so there's nothing to adjust for. No result changes. If some TCGA samples were blood and others marrow, that would add unexplained noise, which makes replication harder, not easier; worth one line in Limitations.

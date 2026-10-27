@@ -84,7 +84,10 @@ f_eq  <- function(field, value) list(op = "=", content = list(field = field, val
 
 fetch_gdc <- function(file_id, md5, dest) {
   if (file.exists(dest) && unname(tools::md5sum(dest)) == md5) return(invisible(TRUE))
-  for (attempt in 1:4) {
+  # Six tries, waiting 2, 4, ..., 64 s (about 2 minutes in all). Session 12's clean
+  # run hit a few minutes of empty replies from GDC for one file; the old four
+  # tries (30 s) gave up too early, and the same file downloaded fine later.
+  for (attempt in 1:6) {
     ok <- tryCatch({ download.file(paste0(gdc, "/data/", file_id), dest,
                                    mode = "wb", quiet = TRUE); TRUE },
                    error = function(e) FALSE, warning = function(w) FALSE)
@@ -493,7 +496,8 @@ print(table(unmatched_sig$biotype))
 
 # ---- 4. DESeq2 in TCGA ----------------------------------------------------------
 # Approved design: ~ sex + NPM1_status (wt = reference). TCGA-LAML has no
-# sequencing wave and no specimen-type split (all bone marrow, one centre), so
+# sequencing wave and no specimen-type split (GDC gives every sample the same
+# type, "Primary Blood Derived Cancer - Peripheral Blood"; one centre), so
 # sex is the only covariate. Sequencing plate is not in the model; the PCA below
 # checks that plate doesn't split the samples.
 

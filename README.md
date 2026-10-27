@@ -28,14 +28,16 @@ Files used:
 | `beataml_wv1to4_clinical.xlsx` | Diagnosis, NPM1 and FLT3-ITD calls, specimen type, sex, wave, fusions |
 | `beataml_waves1to4_sample_mapping.xlsx` | Matching RNA and DNA sample IDs to patients |
 | `beataml_wes_wv1to4_mutations_dbgap.txt` | Exome mutation calls (co-mutations within NPM1-mutated AML) |
+| `beataml2_manuscript_vg_cts.xlsx` | Malignant cell-type scores (Bottomly et al. 2022, from van Galen et al. 2019 marker genes) |
+| `beataml_probit_curve_fits_v4_dbgap.txt` | Ex vivo drug response (AUC per sample and drug) |
+| `beataml_drug_families.xlsx` | Drug target families, for colouring the drug plots |
 
 Please cite the Beat AML papers when using these data:
 
 - Bottomly D, Long N, Schultz AR, et al. Integrative analysis of drug response and clinical outcome in acute myeloid leukemia. *Cancer Cell* 2022;40(8):850-864.e9. https://doi.org/10.1016/j.ccell.2022.07.002
-- Cancer Genome Atlas Research Network. Genomic and epigenomic landscapes of adult de novo acute myeloid leukemia. *New England Journal of Medicine* 2013;368(22):2059-2074. https://doi.org/10.1056/NEJMoa1301689
-- Pei S, Pollyea DA, Gustafson A, et al. Monocytic subclones confer resistance to venetoclax-based therapy in patients with acute myeloid leukemia. *Cancer Discovery* 2020;10(4):536-551. https://doi.org/10.1158/2159-8290.CD-19-0710
-- Schoenfeld DA. Sample-size formula for the proportional-hazards regression model. *Biometrics* 1983;39(2):499-503. https://doi.org/10.2307/2531021
 - Tyner JW, Tognon CE, Bottomly D, et al. Functional genomic landscape of acute myeloid leukaemia. *Nature* 2018;562(7728):526-531. https://doi.org/10.1038/s41586-018-0623-z
+
+**Replication cohort: TCGA-LAML** (Cancer Genome Atlas Research Network, *NEJM* 2013). Gene counts (STAR, GENCODE v36, GRCh38), clinical data and open "masked" mutation files come from the NCI Genomic Data Commons; the paper's curated mutation calls, cytogenetics and survival come from cBioPortal (study `laml_tcga_pub`); read coverage and splice junctions along FTO come from recount3 (Wilks et al. 2021). `scripts/08_tcga_replication.R` and `scripts/11_fto_locus.R` fetch them.
 
 **Cohort.** AML only, sample taken at initial diagnosis, de novo AML only (no secondary or therapy-related AML), one sample per patient (the earliest). Acute promyelocytic leukaemia and KMT2A-fusion cases were excluded from the main comparison; the KMT2A-fusion cases are kept for a separate three-group plot. One sample was dropped in QC because its recorded sex didn't match its expression (possible sample swap). Final main cohort: **276 patients, 100 NPM1-mutated and 176 wild-type.** The step-by-step counts are in `results/cohort_flow.csv`.
 
@@ -47,7 +49,13 @@ Please cite the Beat AML papers when using these data:
 
 **Expression plots and subgroup analysis.** Expression values for plots are DESeq2 variance-stabilised (VST) counts. Within NPM1-mutated AML, a score from NEK10, FTO and USP44 (mean z-score) was split into two groups by k-means. The groups were compared with exome mutation calls, FLT3-ITD, and marker scores for the primitive and committed subtypes of Mer et al. (2021). A second sensitivity DESeq2 model replaced NPM1 status with a three-level group (wild-type, NPM1-high, NPM1-low): `~ wave + specimen_type + sex + group`.
 
-**Software.** R 4.6.1 on Ubuntu 24.04. DESeq2 1.52.0, apeglm 1.34.0, fgsea 1.38.0, msigdbr 26.1.1 (MSigDB 2026.1.Hs), BiocParallel 1.46.0, data.table 1.18.6.1, dplyr 1.2.1, tidyr 1.3.2, readxl 1.6.0, jsonlite 2.0.0, ggplot2 4.0.3, ggrepel 0.9.8, pheatmap 1.0.13, survival 3.8.12. Full `sessionInfo()` for each step is in `results/sessionInfo*.txt`. Random steps use seed 2026.
+**Cell maturity.** Bottomly et al. (2022) gave each Beat AML sample six malignant cell-type scores (HSC-like, Progenitor-like, GMP-like, Promono-like, Monocyte-like, cDC-like; the first principal component of the top 30 marker genes per type from van Galen et al. 2019). 270 of the 276 main-cohort samples have scores. A sensitivity DESeq2 model added two of them, `~ wave + specimen_type + sex + HSC_like + Monocyte_like + NPM1_status`, and was compared with the main design refitted on the same 270 samples. A model with all six scores was run as an upper bound only: the six scores together predict NPM1 status with AUC 0.93, so that model removes NPM1 biology along with maturity.
+
+**Replication in TCGA-LAML.** The Beat AML cohort filters were applied in the same order (111 patients: 31 NPM1-mutated, 80 wild-type, plus 9 KMT2A-rearranged for the three-group plot). Genes were matched to Beat AML by Ensembl ID. DESeq2 used `~ sex + NPM1_status` (TCGA has no sequencing waves, and GDC gives every sample the same specimen type, so there is no bone marrow vs blood split to adjust for; sequencing plate was checked by PCA and left out). The signature score is the mean z-score of the Beat AML top 50 up genes minus that of the top 50 down genes (those present in TCGA), and its ROC AUC for NPM1 status has a DeLong 95% CI.
+
+**Drug response, survival and the FTO locus.** Ex vivo drug AUCs were matched to the same specimen as the RNA-seq; for each drug tested in at least 20 samples per group, `auc ~ NPM1_status + Monocyte_like`, with Benjamini-Hochberg FDR across drugs. Overall survival used Kaplan-Meier curves and Cox models adjusted for age (and FLT3-ITD within NPM1-mutated AML); treatment varied too much to model, so survival is exploratory. For FTO, read coverage and splice junctions along the gene in TCGA-LAML were read from recount3 (GRCh38, GENCODE v26) and compared between NEK10/FTO/USP44-high and -low samples.
+
+**Software.** R 4.6.1 on Ubuntu 24.04. DESeq2 1.52.0, apeglm 1.34.0, fgsea 1.38.0, msigdbr 26.1.1 (MSigDB 2026.1.Hs), BiocParallel 1.46.0, data.table 1.18.6.1, dplyr 1.2.1, tidyr 1.3.2, readxl 1.6.0, jsonlite 2.0.0, httr 1.4.9, ggplot2 4.0.3, ggrepel 0.9.8, patchwork 1.3.2, pheatmap 1.0.13, pROC 1.19.1, survival 3.8-12, recount3 1.22.0, rtracklayer 1.72.0, GenomicRanges 1.64.0. Exact versions of these and every package they depend on are locked in `renv.lock`. Full `sessionInfo()` for each step is in `results/sessionInfo*.txt`. Random steps use seed 2026.
 
 ## Results
 
@@ -79,9 +87,31 @@ GSEA running enrichment score for VERHAAK_AML_WITH_NPM1_MUTATED_UP (174 genes in
 
 Top 15 up and top 15 down GO Biological Process terms by NES, after `fgsea::collapsePathways` removed terms explained by a more significant overlapping term (468 terms at FDR < 0.05 down to 154). Up: embryonic skeletal morphogenesis and anterior/posterior pattern specification, whose leading edges are the HOXA and HOXB genes and PBX3, so this is the HOX program in GO's language. A group of cilium terms is also up, which we haven't explained yet. Down: antigen presentation (MHC class II) and cell-cycle terms. Dot size is genes in the set, colour is -log10 FDR.
 
+### How much of the NPM1 signal is cell maturity?
+
+![Fold changes before and after adjusting for cell-type scores](figures/07_celltype_adjusted_lfc.png)
+
+NPM1-mutated AML tends to look more mature than other AML (less stem-like, more promonocyte-like, usually CD34-negative), so some "NPM1 genes" could simply reflect where a sample sits on the stem-to-monocyte axis. Each point is a gene: its log2 fold change from the main design refitted on the 270 samples with cell-type scores (x) against the fold change after adding scores to the model (y). **Left, the sensitivity model** (+ HSC-like + Monocyte-like): fold changes correlate at 0.89 with the main design and are on average 0.85x its size; 49 of the top 50 genes stay significant (32 stay in the top 50). The core positive controls keep almost their full size: HOXA9 105%, HOXA10 99%, PBX3 97%, CD34 97% (all padj < 1e-6). MEIS1 rises to 117%, but MEIS1 is one of the 30 genes behind the HSC-like score, so that number is partly circular (marked \*). **Right, all six scores: an upper bound, not a result.** The six scores together predict NPM1 status with AUC 0.93, so this model strips out real NPM1 biology along with maturity; it shows the most that cell type could possibly explain. Even here every core control survives, though smaller (HOXA9 58%, CD34 70% of the main-design size). So cell maturity is a real influence, but it explains only a small part of the NPM1 signal. One caution: the NPM1 mutation itself pushes cells towards a more mature state, so maturity is partly a consequence of NPM1, and adjusting for it can remove real signal (CD34 is the clearest case).
+
+### Replication in TCGA-LAML
+
+TCGA-LAML is an independent cohort: a different centre, sequencing pipeline and genome build (GRCh38, GENCODE v36). The same cohort filters give 111 patients (31 NPM1-mutated, 80 wild-type) plus 9 KMT2A-rearranged cases. 18,693 of the 19,398 Beat AML genes have a TCGA match by Ensembl ID.
+
+![Beat AML NPM1 signature score in TCGA-LAML and its ROC curve](figures/08_tcga_signature_score_roc.png)
+
+A signature score built only from Beat AML (mean z-score of its 50 most significant up genes minus its 50 most significant down genes; 47 and 49 of them exist in TCGA), computed for every TCGA sample. Left: NPM1-mutated AML scores high (median about 1.5) and other AML low (about -0.6). KMT2A-rearranged AML sits in between (about 0.8): it shares the HOX "up" half of the signature but not the "down" half (CD34, BAALC and other stem genes). Right: the score separates NPM1-mutated from wild-type with **ROC AUC 0.992 (95% CI 0.981 to 1.000)**. Nothing about TCGA was used to pick the genes, so this is a fair out-of-cohort test. It shows our signature is the known NPM1 signature, not something new.
+
+![NPM1 fold changes, Beat AML vs TCGA-LAML](figures/08_tcga_lfc_vs_beataml.png)
+
+Shrunken log2 fold change (NPM1-mutated vs wild-type) in Beat AML (x) and TCGA (y) for the 17,498 genes tested in both; DESeq2 in TCGA used `~ sex + NPM1_status`. Pearson r is 0.74 across all of them and 0.84 across Beat AML's significant genes (most genes barely change in either cohort, and their noise doesn't correlate). 95% of Beat AML's 967 significant genes that TCGA tested go the same way there; 562 are significant in both cohorts and only one (BEGAIN) goes the opposite way. 48 of the 49 testable top-50 genes are significant again. Every positive control passes in TCGA with a similar fold change (HOXA9 +2.09, HOXA10 +1.90, MEIS1 +1.46, PBX3 +2.25, CD34 -4.06), and so do the two Verhaak gene sets (NES +3.79 and -3.80). Adding FLT3-ITD to the model keeps 46 of the top 50 in the top 50.
+
+![HOXA9 and MEIS1 in TCGA-LAML](figures/08_tcga_three_group_hoxa9_meis1.png)
+
+HOXA9 and MEIS1 (VST) in TCGA: NPM1-mutated (n = 31), KMT2A-rearranged (n = 9) and other AML (n = 80). The Beat AML picture comes back: the two menin-dependent groups sit at the same high level (median HOXA9 11.3 and 11.3, MEIS1 12.2 and 11.8; NPM1-mutated vs KMT2A-rearranged p = 0.66 and 0.75), 1.9 to 2.8 units above other AML (Wilcoxon p from 4e-12 to 0.008). Inside TCGA's NPM1-mutated AML, NEK10, FTO and USP44 again rise and fall together (Spearman 0.72 to 0.76) and their high samples are again primitive-like, but the high group is smaller: 6 of 31 (19%), against 37 of 100 in Beat AML.
+
 ### A known subgroup inside NPM1-mutated AML
 
-About 40% of NPM1-mutated samples (37 of 100) have high NEK10, FTO and USP44 (two-cluster k-means on the mean z-score of the three genes; WDR86, an early fourth member, was dropped because it tracks FLT3-ITD instead). This group **matches two published NPM1 subgroups**; it is not a new discovery.
+More than a third of NPM1-mutated samples (37 of 100) have high NEK10, FTO and USP44 (two-cluster k-means on the mean z-score of the three genes; WDR86, an early fourth member, was dropped because it tracks FLT3-ITD instead). This group **matches two published NPM1 subgroups**; it is not a new discovery.
 
 - **Mer et al. (2021), primitive vs committed subtypes.** Their primitive markers are all higher in our high group and their committed markers all lower.
 - **Arza-Apalategi et al. (2023), IFEX9-high.** They showed that "high FTO" in about a third of NPM1-mutated AML is really an intragenic lncRNA, IFEX9, linked to FLT3-ITD, TET2, IDH2 and an immature profile. Our high group is enriched for TET2 (33% vs 11%) and IDH2 (39% vs 13%), leans towards FLT3-ITD (51% vs 35%, not significant), and holds 11 of the 15 samples with NPM1 + FLT3-ITD + TET2 or IDH2.
@@ -137,7 +167,15 @@ Inside NPM1-mutated AML, the NEK10/FTO/USP44-high (primitive-like) group did wor
 
 ## How to reproduce
 
-1. Install R and the packages. On Ubuntu 24.04, `bash setup/cloud_setup.sh` installs R and every package as prebuilt binaries (about 2 to 4 minutes).
+1. **Get R 4.6.1 and the packages.** There are two ways; use one.
+   - *Exact versions, any system (renv).* `renv.lock` records the version of every R package used here (127 packages: Bioconductor 3.23 and CRAN). Install R 4.6.1, then from the repo root run:
+     ```r
+     install.packages("renv")
+     renv::restore()
+     ```
+     renv asks whether to activate the project; say yes, so the scripts use the library it builds in `renv/library/`. On Linux most packages compile from source, so the first restore takes a while; renv caches them for next time.
+   - *Fast, Ubuntu 24.04 only.* `bash setup/cloud_setup.sh` installs R and every package as prebuilt binaries from r2u (about 1 to 4 minutes). These are the newest r2u builds, so they can be newer than `renv.lock` over time. `Rscript setup/renv_snapshot.R --check` lists any package whose installed version differs from the lockfile.
+   - After adding or updating a package, rewrite the lockfile with `Rscript setup/renv_snapshot.R`.
 2. From the repo root, run the whole pipeline with `Rscript scripts/run_all.R`, or run the scripts one at a time in this order:
 
 | Script | What it does | Main outputs |
@@ -156,7 +194,7 @@ Inside NPM1-mutated AML, the NEK10/FTO/USP44-high (primitive-like) group did wor
 | `scripts/11_fto_locus.R` | FTO vs IFEX9: read coverage and splice junctions along FTO in TCGA-LAML (recount3), plus FTO-locus genes in Beat AML | `results/fto_*.csv`, `figures/11_*.png` |
 | `scripts/12_build_site.R` | Data files for the web page: per-gene quartiles by group (needs `data/` only if the CSV is missing), the gene lookup JSON, figure copies | `results/site_gene_group_quartiles.csv`, `docs/data/genes.json`, `docs/figures/` |
 
-The full run takes roughly 30 minutes plus download time. `run_all.R` hasn't yet been tested from a clean checkout. Each script saves its `sessionInfo()` to `results/`.
+`run_all.R` runs each script in its own R process, stops at the first failure (resume with `Rscript scripts/run_all.R --from 08`, for example) and writes how long each script took to `results/run_all_timings.csv`. In Session 12 it ran from a fresh clone with every output deleted in **37.5 minutes** on a 4-core machine. About 60% of that is the two scripts that download TCGA data (08, about 650 MB from GDC; 11, the FTO slices from recount3), so it depends on how busy those servers are. Every result table came back identical to the committed one. Each script saves its `sessionInfo()` to `results/`.
 
 ## AI use
 
@@ -172,6 +210,7 @@ The full run takes roughly 30 minutes plus download time. `run_all.R` hasn't yet
 - Pei S, Pollyea DA, Gustafson A, et al. Monocytic subclones confer resistance to venetoclax-based therapy in patients with acute myeloid leukemia. *Cancer Discovery* 2020;10(4):536-551. https://doi.org/10.1158/2159-8290.CD-19-0710
 - Schoenfeld DA. Sample-size formula for the proportional-hazards regression model. *Biometrics* 1983;39(2):499-503. https://doi.org/10.2307/2531021
 - Tyner JW, Tognon CE, Bottomly D, et al. Functional genomic landscape of acute myeloid leukaemia. *Nature* 2018;562(7728):526-531. https://doi.org/10.1038/s41586-018-0623-z
-- Wilks C, Zheng SC, Chen FY, et al. recount3: summaries and queries for large-scale RNA-seq expression and splicing. *Genome Biology* 2021;22(1):323. https://doi.org/10.1186/s13059-021-02533-6
+- van Galen P, Hovestadt V, Wadsworth MH II, et al. Single-cell RNA-seq reveals AML hierarchies relevant to disease progression and immunity. *Cell* 2019;176(6):1265-1281.e24. https://doi.org/10.1016/j.cell.2019.01.031
 - Verhaak RGW, Goudswaard CS, van Putten W, et al. Mutations in nucleophosmin (NPM1) in acute myeloid leukemia (AML): association with other gene abnormalities and previously established gene expression signatures and their favorable prognostic significance. *Blood* 2005;106(12):3747-3754. https://doi.org/10.1182/blood-2005-05-2168
+- Wilks C, Zheng SC, Chen FY, et al. recount3: summaries and queries for large-scale RNA-seq expression and splicing. *Genome Biology* 2021;22(1):323. https://doi.org/10.1186/s13059-021-02533-6
 - Zhang H, Nakauchi Y, Köhnke T, et al. Integrated analysis of patient samples identifies biomarkers for venetoclax efficacy and combination strategies in acute myeloid leukemia. *Nature Cancer* 2020;1(8):826-839. https://doi.org/10.1038/s43018-020-0103-x

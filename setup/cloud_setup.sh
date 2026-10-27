@@ -9,7 +9,7 @@ export DEBIAN_FRONTEND=noninteractive
 SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO="sudo"
 
 # Skip everything if a previous run already finished.
-if command -v Rscript >/dev/null 2>&1 && Rscript -e 'suppressMessages({library(DESeq2);library(apeglm);library(fgsea);library(clusterProfiler);library(org.Hs.eg.db);library(msigdbr);library(pROC);library(patchwork);library(survival)})' >/dev/null 2>&1; then
+if command -v Rscript >/dev/null 2>&1 && Rscript -e 'suppressMessages({library(DESeq2);library(apeglm);library(fgsea);library(clusterProfiler);library(org.Hs.eg.db);library(msigdbr);library(pROC);library(patchwork);library(survival);library(recount3);library(rtracklayer);library(renv)})' >/dev/null 2>&1; then
   echo "R and packages already installed"; exit 0
 fi
 
@@ -36,6 +36,6 @@ $SUDO apt-get install -y -qq --no-install-recommends \
   r-bioc-org.hs.eg.db r-cran-msigdbr r-cran-ggplot2 r-cran-ggrepel \
   r-cran-pheatmap r-cran-readxl r-cran-data.table r-cran-dplyr \
   r-cran-proc r-cran-patchwork r-cran-httr r-cran-survival \
-  r-bioc-recount3 r-bioc-rtracklayer
+  r-bioc-recount3 r-bioc-rtracklayer r-cran-jsonlite r-cran-tidyr r-cran-renv
 
-Rscript -e 'pk <- c("DESeq2","apeglm","fgsea","clusterProfiler","org.Hs.eg.db","msigdbr","ggplot2","ggrepel","pheatmap","readxl","data.table","dplyr","pROC","patchwork","httr","survival","recount3","rtracklayer"); for (p in pk) suppressPackageStartupMessages(library(p, character.only = TRUE)); cat("All", length(pk), "packages load OK\n")'
+Rscript -e 'pk <- c("DESeq2","apeglm","fgsea","clusterProfiler","org.Hs.eg.db","msigdbr","ggplot2","ggrepel","pheatmap","readxl","data.table","dplyr","pROC","patchwork","httr","survival","recount3","rtracklayer","jsonlite","tidyr","renv"); for (p in pk) suppressPackageStartupMessages(library(p, character.only = TRUE)); cat("All", length(pk), "packages load OK\n")'

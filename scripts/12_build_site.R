@@ -1,5 +1,7 @@
 # 12_build_site.R
 # Session 11: data files for the project web page in docs/ (GitHub Pages).
+# Session 12: the gene lookup also carries the TCGA-LAML NPM1-mutated vs
+# wild-type result (results/tcga_deseq2_npm1.csv), matched on Ensembl gene_id.
 # The page itself (docs/*.html, docs/assets/) is hand-written plain HTML, CSS
 # and JavaScript; this script only rebuilds what the page reads.
 #
@@ -9,9 +11,10 @@
 #     (05_enrichment.R step 6). Saved to results/site_gene_group_quartiles.csv.
 #     This is the only step that needs data/ (the counts file); if the CSV
 #     already exists it is reused, unless you set REBUILD_QUARTILES=1.
-#  2. docs/data/genes.json: one row per gene with the three group summaries
-#     and the main DESeq2 result (results/deseq2_npm1.csv), plus short notes
-#     for genes discussed in LEARNING.md.
+#  2. docs/data/genes.json: one row per gene with the three group summaries,
+#     the main DESeq2 result (results/deseq2_npm1.csv), the TCGA-LAML result
+#     (results/tcga_deseq2_npm1.csv, null = not tested in TCGA), plus short
+#     notes for genes discussed in LEARNING.md.
 #  3. Copy the key figures from figures/ into docs/figures/.
 #  4. Check docs/ stays under 20 MB.
 #
@@ -96,6 +99,8 @@ quart <- fread(quart_file)
 
 # ---- 2. docs/data/genes.json -------------------------------------------------
 de <- fread("results/deseq2_npm1.csv")
+tcga <- fread("results/tcga_deseq2_npm1.csv")  # Session 7, ~ sex + NPM1_status, 111 samples
+if (anyDuplicated(tcga$gene_id)) stop("Duplicate gene_id in results/tcga_deseq2_npm1.csv")
 sex_removed <- fread("results/enrichment_removed_sex_genes.csv")$gene_id
 
 # Short notes for genes discussed in LEARNING.md (wording from the log)
@@ -135,17 +140,28 @@ expr <- lapply(split(quart, by = "gene_id"), function(d) {
 n_by_group <- quart[, .(n = n[1]), by = group][match(groups, group), n]
 
 de_idx <- match(ids, de$gene_id)
+# Same Ensembl stable ID in both annotations (Ensembl 75 and GENCODE v36, version
+# suffix already removed in 08_tcga_replication.R). A gene with no TCGA row either
+# has no matching ID in GENCODE v36 or failed TCGA's low-count filter
+# (>= 10 reads in >= 31 samples); the page calls both "not tested in TCGA".
+tcga_idx <- match(ids, tcga$gene_id)
 rows <- lapply(seq_along(ids), function(i) {
   id <- ids[i]; j <- de_idx[i]; s <- unname(sym[id])
   d <- if (is.na(j)) NULL else list(
     signif(de$log2FC[j], 3), signif(de$lfcSE[j], 3),
     if (is.na(de$padj[j])) NULL else signif(de$padj[j], 3),
     de$rank[j], as.integer(isTRUE(de$sig[j])))
+  k <- tcga_idx[i]
+  tc <- if (is.na(k)) NULL else list(
+    signif(tcga$log2FC[k], 3), signif(tcga$lfcSE[k], 3),
+    if (is.na(tcga$padj[k])) NULL else signif(tcga$padj[k], 3),
+    tcga$rank[k], as.integer(isTRUE(tcga$sig[k])),
+    if (identical(tcga$symbol[k], s)) NULL else tcga$symbol[k])  # renamed since 2014
   note <- if (id %in% sex_removed && !(s %in% names(notes))) {
     paste("Male-specific chrY gene: removed from the ranked list before gene-set enrichment, because",
           "a sex-adjusted model still handles Y genes with near-zero counts in females badly.")
   } else if (s %in% names(notes)) unname(notes[s]) else NULL
-  list(s, id, if (is.na(j)) NULL else biotype[[id]], expr[[id]], d, note)
+  list(s, id, if (is.na(j)) NULL else biotype[[id]], expr[[id]], d, note, tc)
 })
 
 meta <- list(
@@ -153,12 +169,17 @@ meta <- list(
   expr_fields = expr_cols,
   de_fields = c("log2FC", "lfcSE", "padj", "rank", "sig"),
   de_n_genes = nrow(de),
+  tcga_fields = c("log2FC", "lfcSE", "padj", "rank", "sig", "symbol_if_different"),
+  tcga_n_genes = nrow(tcga),
   built = format(Sys.Date()),
   expression = paste("DESeq2 VST (roughly log2), blind, on the 276 main-cohort samples plus",
                      "24 KMT2A-rearranged cases; genes with at least 10 reads in at least 100 samples."),
   deseq2 = paste("~ wave + specimen_type + sex + NPM1_status on the 276 main-cohort samples,",
                  "NPM1 wild-type as reference; apeglm-shrunken log2FC; significant = padj < 0.05",
-                 "and |log2FC| > 1.")
+                 "and |log2FC| > 1."),
+  tcga = paste("TCGA-LAML (GDC STAR counts, GENCODE v36): ~ sex + NPM1_status on 111 main-cohort",
+               "samples (31 NPM1-mutated, 80 wild-type), same cohort filters as Beat AML; apeglm-shrunken",
+               "log2FC; significant = padj < 0.05 and |log2FC| > 1.")
 )
 dir.create("docs/data", recursive = TRUE, showWarnings = FALSE)
 write_json(list(meta = meta, genes = rows), "docs/data/genes.json",
@@ -166,7 +187,8 @@ write_json(list(meta = meta, genes = rows), "docs/data/genes.json",
 cat("docs/data/genes.json:", length(rows), "genes,",
     round(file.size("docs/data/genes.json") / 1024^2, 2), "MB\n")
 cat("  with expression:", sum(ids %in% quart$gene_id),
-    " with a DESeq2 result:", sum(!is.na(de_idx)), "\n")
+    " with a DESeq2 result:", sum(!is.na(de_idx)),
+    " with a TCGA result:", sum(!is.na(tcga_idx)), "\n")
 
 # ---- 3. Figures ----------------------------------------------------------------
 site_figs <- c(

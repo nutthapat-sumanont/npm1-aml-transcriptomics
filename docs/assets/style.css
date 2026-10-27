@@ -144,7 +144,13 @@ th { color: var(--muted); font-weight: 600; }
 .gene-head .small a { color: var(--muted); }
 #plot { width: 100%; height: 420px; margin: 12px 0; }
 .note { border-left: 4px solid var(--accent); padding: 8px 14px; background: var(--surface); margin: 12px 0; font-size: 15px; }
-.de-table td:first-child { color: var(--muted); width: 45%; }
+.de-table { table-layout: fixed; }
+.de-table th, .de-table td { overflow-wrap: anywhere; }
+.de-table thead td, .de-table th[scope="row"] { width: 28%; }
+.de-table thead th { color: var(--text); }
+.de-table thead th span { display: block; font-size: 13px; font-weight: 400; color: var(--muted); }
+.de-table th[scope="row"] { color: var(--muted); font-weight: 400; }
+.de-table td.missing { color: var(--muted); font-size: 14px; vertical-align: middle; }
 .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 14px; font-weight: 600; }
 .badge.up { background: rgba(213, 94, 0, 0.15); color: var(--npm1); }
 .badge.down { background: rgba(0, 114, 178, 0.15); color: var(--kmt2a); }
@@ -152,6 +158,7 @@ th { color: var(--muted); font-weight: 600; }
 .msg { color: var(--muted); }
 
 footer.site { border-top: 1px solid var(--line); padding: 20px 0 32px; font-size: 14px; color: var(--muted); }
+footer.site p { margin: 0 0 6px; }
 
 @media (max-width: 600px) {
   body { font-size: 16px; }
@@ -162,4 +169,7 @@ footer.site { border-top: 1px solid var(--line); padding: 20px 0 32px; font-size
   nav a { padding: 8px 10px; }
   #plot { height: 360px; }
   .card { padding: 16px; }
+  .de-table { font-size: 14px; }
+  .de-table th, .de-table td { padding: 8px 6px; }
+  .badge { padding: 2px 8px; font-size: 13px; }
 }
