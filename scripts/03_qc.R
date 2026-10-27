@@ -35,8 +35,12 @@ save_fig <- function(p, file, w = 7, h = 5) {
 
 # ---- 1. DESeq2 dataset -------------------------------------------------------
 
+# QC looks at the cohort as it was before any QC exclusion: the 276 main-cohort
+# samples plus BA2294R, which this QC flagged (sex mismatch) and 02_cohort.R
+# step 9 then excluded. Keeping it here means a rerun still shows the evidence
+# for dropping it (Session 12; before that, a rerun silently used 276).
 cohort <- read.csv("results/cohort.csv") %>%
-  filter(main_cohort) %>%
+  filter(main_cohort | group == "QC_excluded") %>%
   mutate(
     NPM1_status   = factor(NPM1, levels = c("wt", "mut")),   # wt = reference
     # Leukapheresis is blood collected by apheresis, so it counts as blood
@@ -47,7 +51,7 @@ cohort <- read.csv("results/cohort.csv") %>%
     sex           = factor(consensus_sex)
   )
 rownames(cohort) <- cohort$dbgap_rnaseq_sample
-cat("Main cohort:", nrow(cohort), "samples\n")
+cat("QC cohort (main cohort + QC-excluded):", nrow(cohort), "samples\n")
 print(table(cohort$NPM1_status))
 
 raw <- fread(counts_file, check.names = FALSE)
