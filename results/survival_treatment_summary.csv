@@ -1,0 +1,7 @@
+"group","n","median_age","treatment_recorded","intensive","transplant","CR_after_induction","refractory","deaths"
+"NPM1-mut (all)",100,60,94,77,36,69,12,44
+"NPM1-mut / ITD-neg",59,61,56,42,11,44,3,19
+"NPM1-mut / ITD-pos",41,57,38,35,25,25,9,25
+"NPM1-wt (all)",175,58,164,134,63,83,56,89
+"NPM1-wt / ITD-neg",142,58,134,112,48,73,43,74
+"NPM1-wt / ITD-pos",33,61,30,22,15,10,13,15
