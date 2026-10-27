@@ -1,0 +1,15 @@
+"metric","value"
+"Genes tested in both cohorts",17498
+"Pearson r, shrunken log2FC, all shared genes",0.739511393372142
+"Spearman rho, shrunken log2FC, all shared genes",0.548447330808451
+"Pearson r, shrunken log2FC, Beat AML significant genes",0.838167436763184
+"Spearman rho, Wald statistic, all shared genes",0.549441636130364
+"Beat AML significant genes (shared)",967
+"TCGA significant genes (shared)",931
+"Significant in both (same direction)",562
+"Significant in both (opposite direction)",1
+"Overlap odds ratio (Fisher)",61.184667765537
+"Overlap Fisher p",0
+"Beat AML significant: same direction in TCGA (%)",95.4498448810755
+"Beat AML significant: TCGA padj < 0.05, same direction",732
+"Beat AML top 50 (shared): TCGA padj < 0.05, same direction",48
