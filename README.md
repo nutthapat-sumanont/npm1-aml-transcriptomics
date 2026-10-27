@@ -2,6 +2,8 @@
 
 A learning and portfolio project: differential expression between NPM1-mutated and NPM1-wild-type acute myeloid leukaemia using Beat AML 2.0 RNA-seq counts, connected to menin inhibitor biology. The session-by-session log, with every number and decision, is in [LEARNING.md](LEARNING.md).
 
+**Project web page:** a static site in `docs/` (overview, key figures, and a gene lookup for any gene), served by GitHub Pages once the repo is public. To preview it locally, run `python3 -m http.server --directory docs` and open http://localhost:8000.
+
 ## Summary
 
 *To write: three to five sentences on the question, the cohort, the main result and what it means.*
@@ -152,6 +154,7 @@ Inside NPM1-mutated AML, the NEK10/FTO/USP44-high (primitive-like) group did wor
 | `scripts/09_drug_response.R` | Ex vivo drug response by NPM1 status, subgroup and HOX score | `results/drug_*.csv`, `figures/09_*.png` |
 | `scripts/10_survival.R` | Exploratory overall survival: NPM1, NPM1 x FLT3-ITD, NEK10/FTO/USP44 group (Beat AML and TCGA) | `results/survival_*.csv`, `figures/10_*.png` |
 | `scripts/11_fto_locus.R` | FTO vs IFEX9: read coverage and splice junctions along FTO in TCGA-LAML (recount3), plus FTO-locus genes in Beat AML | `results/fto_*.csv`, `figures/11_*.png` |
+| `scripts/12_build_site.R` | Data files for the web page: per-gene quartiles by group (needs `data/` only if the CSV is missing), the gene lookup JSON, figure copies | `results/site_gene_group_quartiles.csv`, `docs/data/genes.json`, `docs/figures/` |
 
 The full run takes roughly 30 minutes plus download time. `run_all.R` hasn't yet been tested from a clean checkout. Each script saves its `sessionInfo()` to `results/`.
 

@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NPM1-mutated AML: gene lookup</title>
+<meta name="description" content="Look up any gene: expression in NPM1-mutated, KMT2A-rearranged and other AML (Beat AML 2.0), plus its DESeq2 result.">
+<link rel="stylesheet" href="assets/style.css">
+<script src="https://cdn.plot.ly/plotly-cartesian-2.35.2.min.js" charset="utf-8" defer></script>
+<script src="assets/lookup.js" defer></script>
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="index.html">NPM1-mutated AML transcriptomics</a>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="index.html">Overview</a></li>
+        <li><a href="results.html">Results</a></li>
+        <li><a href="lookup.html" aria-current="page">Gene lookup</a></li>
+        <li><a href="https://github.com/beckyzaza/npm1-aml-transcriptomics">Code</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <h1>Gene lookup</h1>
+    <p class="lede">Type a gene symbol or Ensembl ID to see its expression in NPM1-mutated, KMT2A-rearranged and other AML, and its NPM1-mutated vs wild-type DESeq2 result.</p>
+
+    <form class="search" role="search" autocomplete="off" onsubmit="return false">
+      <label for="q" class="small">Gene symbol or Ensembl ID</label>
+      <input id="q" type="search" placeholder="e.g. HOXA9" spellcheck="false" autocapitalize="characters"
+             aria-autocomplete="list" aria-controls="suggest" aria-expanded="false" disabled>
+      <ul id="suggest" class="suggest" role="listbox" hidden></ul>
+    </form>
+    <div class="chips" aria-label="Examples">
+      <button type="button" data-gene="HOXA9">HOXA9</button>
+      <button type="button" data-gene="MEIS1">MEIS1</button>
+      <button type="button" data-gene="PBX3">PBX3</button>
+      <button type="button" data-gene="CD34">CD34</button>
+      <button type="button" data-gene="BAALC">BAALC</button>
+      <button type="button" data-gene="NEK10">NEK10</button>
+      <button type="button" data-gene="FTO">FTO</button>
+      <button type="button" data-gene="NPM1">NPM1</button>
+    </div>
+
+    <p id="status" class="msg" aria-live="polite">Loading gene data&hellip;</p>
+
+    <section id="result" hidden>
+      <div class="gene-head">
+        <h2 id="g-symbol"></h2>
+        <span class="small" id="g-meta"></span>
+      </div>
+      <div id="g-note"></div>
+      <div id="plot" role="img" aria-label="Box plot of expression by group"></div>
+      <p class="small" id="g-expr-text"></p>
+
+      <h3>DESeq2: NPM1-mutated vs wild-type</h3>
+      <div id="g-de"></div>
+    </section>
+
+    <h2>How to read this</h2>
+    <ul>
+      <li><b>Box plot.</b> Expression is DESeq2 variance-stabilised counts (VST, roughly log2), computed blind to group on the 276 main-cohort samples plus the 24 KMT2A-rearranged cases, the same values as the HOXA9 / MEIS1 figure on the overview. The box is the middle half of samples (25th to 75th percentile), the line is the median, and the whiskers reach the most extreme sample within 1.5 box-lengths. Individual samples aren't shown; the page only stores these summaries.</li>
+      <li><b>Groups.</b> NPM1-mutated (n = 100) and other AML (n = 176) make up the main cohort. KMT2A-rearranged (n = 24) is shown for comparison only; 2 of those cases also carry an NPM1 mutation.</li>
+      <li><b>DESeq2.</b> Main model <code>~ wave + specimen_type + sex + NPM1_status</code> on the 276 main-cohort samples, NPM1 wild-type as reference. log2FC is apeglm-shrunken: +1 means about 2x higher in NPM1-mutated AML. A gene counts as changed at padj &lt; 0.05 and |log2FC| &gt; 1. Rank is by the absolute Wald statistic, 1 = most significant of 19,398. KMT2A-rearranged cases are not in this model.</li>
+      <li><b>Missing genes.</b> Only genes with at least 10 reads in at least 100 samples are included. Symbols come from Ensembl 75 (2014), so a renamed gene may need its old symbol or its Ensembl ID.</li>
+    </ul>
+  </div>
+</main>
+
+<footer class="site">
+  <div class="wrap">Data: Beat AML 2.0 (CC-BY-4.0; Bottomly et al., <em>Cancer Cell</em> 2022; Tyner et al., <em>Nature</em> 2018). Built by <code>scripts/12_build_site.R</code>. Code: <a href="https://github.com/beckyzaza/npm1-aml-transcriptomics">github.com/beckyzaza/npm1-aml-transcriptomics</a>.</div>
+</footer>
+</body>
+</html>

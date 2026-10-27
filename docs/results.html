@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NPM1-mutated AML: results</title>
+<meta name="description" content="Key figures: differential expression, TCGA replication, cell maturity, the NEK10/FTO/USP44 subgroup, FTO vs IFEX9, drug response and survival.">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<header class="site">
+  <div class="wrap">
+    <a class="brand" href="index.html">NPM1-mutated AML transcriptomics</a>
+    <nav aria-label="Main">
+      <ul>
+        <li><a href="index.html">Overview</a></li>
+        <li><a href="results.html" aria-current="page">Results</a></li>
+        <li><a href="lookup.html">Gene lookup</a></li>
+        <li><a href="https://github.com/beckyzaza/npm1-aml-transcriptomics">Code</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <h1>Results</h1>
+    <p class="lede">The key figures, in the order the analysis was done. Tap or click a figure to open it at full size.</p>
+
+    <nav class="toc card" aria-label="On this page">
+      <ol style="margin:0">
+        <li><a href="#de">NPM1-mutated vs wild-type</a></li>
+        <li><a href="#verhaak">The published NPM1 signature is reproduced</a></li>
+        <li><a href="#tcga">Replication in TCGA-LAML</a></li>
+        <li><a href="#maturity">How much is cell maturity?</a></li>
+        <li><a href="#subgroup">A known subgroup inside NPM1-mutated AML</a></li>
+        <li><a href="#fto">FTO, or a transcript inside FTO?</a></li>
+        <li><a href="#drugs">Ex vivo drug response</a></li>
+        <li><a href="#survival">Survival (exploratory)</a></li>
+      </ol>
+    </nav>
+
+    <h2 id="de">1. NPM1-mutated vs wild-type</h2>
+    <figure>
+      <a class="zoom" href="figures/04_volcano.png" title="Open full size">
+        <img src="figures/04_volcano.png" width="2400" height="1950" loading="lazy"
+             alt="Volcano plot of 19,398 genes: 307 up and 712 down in NPM1-mutated AML. NEK10, FTO and PBX3 are labelled on the up side; TRH, TSPAN7, APP, CD34 and BAALC on the down side.">
+      </a>
+      <figcaption><b>Volcano plot, 276 patients (100 NPM1-mutated, 176 wild-type).</b> Each point is one of the 19,398 genes that pass the low-count filter (at least 10 reads in at least 100 samples). x: apeglm-shrunken log2 fold change; y: &minus;log10 adjusted p-value. DESeq2 design <code>~ wave + specimen_type + sex + NPM1_status</code>. 1,019 genes pass padj &lt; 0.05 and |log2FC| &gt; 1: <b>307 up and 712 down</b> in NPM1-mutated AML. The positive controls all go the expected way: HOXA9 (+1.60), HOXA10 (+1.51), HOXB2 to HOXB9 (+1.35 to +3.10), MEIS1 (+1.60) and PBX3 (+1.91) up, CD34 (&minus;4.00) down. The up side is the HOX program that the NPM1-mutant protein keeps switched on with menin and KMT2A; the down side is stem and progenitor genes (CD34, BAALC), since NPM1-mutated AML is usually CD34-negative. Adding FLT3-ITD to the model keeps 42 of the top 50 genes in the top 50 (fold changes correlate at 0.98).</figcaption>
+    </figure>
+
+    <h2 id="verhaak">2. The published NPM1 signature is reproduced</h2>
+    <figure>
+      <a class="zoom" href="figures/05_gsea_verhaak_up.png" title="Open full size">
+        <img src="figures/05_gsea_verhaak_up.png" width="2100" height="1350" loading="lazy"
+             alt="GSEA enrichment plot for the VERHAAK_AML_WITH_NPM1_MUTATED_UP gene set; the running score rises steeply within the first part of the ranked list.">
+      </a>
+      <figcaption><b>Gene-set enrichment for VERHAAK_AML_WITH_NPM1_MUTATED_UP.</b> Genes ranked by the DESeq2 Wald statistic, after removing 25 male-specific chrY genes and XIST. The running score climbs within the first ~1,000 genes: most of the 174 set genes sit near the top of our list. <b>NES +3.31, FDR 2.4e-36.</b> The matching DN set goes the other way (NES &minus;3.76, FDR 1.4e-96). Verhaak et al. built these sets from an independent cohort on microarrays, so our RNA-seq ranking reproducing them is the strongest sign the pipeline works end to end. In GO Biological Process, the top "up" terms (embryonic skeletal system morphogenesis, anterior/posterior pattern specification) are the HOXA and HOXB genes and PBX3 in GO's language.</figcaption>
+    </figure>
+
+    <h2 id="tcga">3. Replication in TCGA-LAML</h2>
+    <p>Same cohort filters, a different hospital, sequencing centre, genome build and annotation: 111 patients (31 NPM1-mutated, 80 wild-type), design <code>~ sex + NPM1_status</code>. Every positive control passes again, and a score built only from the Beat AML top 50 up and top 50 down genes separates NPM1-mutated from wild-type TCGA samples with <b>ROC AUC 0.992</b> (95% CI 0.981 to 1.000).</p>
+    <figure>
+      <a class="zoom" href="figures/08_tcga_lfc_vs_beataml.png" title="Open full size">
+        <img src="figures/08_tcga_lfc_vs_beataml.png" width="2400" height="2100" loading="lazy"
+             alt="Scatter plot of NPM1 log2 fold changes in Beat AML (x) against TCGA-LAML (y) for 17,498 genes, falling along the diagonal.">
+      </a>
+      <figcaption><b>The NPM1 effect in Beat AML vs TCGA-LAML.</b> apeglm-shrunken log2 fold changes for the 17,498 genes tested in both cohorts; Pearson r = 0.74 overall and 0.84 among the Beat AML significant genes. 95.4% of the 967 Beat AML significant genes testable in TCGA go the same way there, and 48 of the 49 testable top-50 genes are significant again. 562 genes are significant in both in the same direction; one goes the opposite way. The correlation isn't higher because most genes barely change in either cohort, and their fold changes are mostly noise.</figcaption>
+    </figure>
+
+    <h2 id="maturity">4. How much is cell maturity?</h2>
+    <figure>
+      <a class="zoom" href="figures/07_celltype_adjusted_lfc.png" title="Open full size">
+        <img src="figures/07_celltype_adjusted_lfc.png" width="3300" height="2040" loading="lazy"
+             alt="Two scatter plots comparing NPM1 fold changes before and after adjusting for cell-type scores. Left, the two-score sensitivity model stays close to the diagonal; right, the all-six upper bound shrinks more.">
+      </a>
+      <figcaption><b>NPM1 fold changes before (x) and after (y) adjusting for malignant cell-type scores</b> (Bottomly et al. 2022, built on van Galen et al. 2019 marker genes), on the 270 samples that have scores. <b>Left, the sensitivity model</b> (+ HSC-like + Monocyte-like): all five core positive controls survive at 97 to 117% of their size, 49 of the top 50 genes stay significant, fold changes correlate at 0.89 and are on average 0.85x the unadjusted ones. Cell maturity explains only a small part of the NPM1 signal. <b>Right, all six scores: an upper bound, not a result.</b> The six scores together predict NPM1 status with AUC 0.93, so this model removes real NPM1 biology along with cell maturity. * marks a partly circular gene: MEIS1 is one of the 30 genes behind the HSC-like score (TRH is in the GMP-like score).</figcaption>
+    </figure>
+
+    <h2 id="subgroup">5. A known subgroup inside NPM1-mutated AML</h2>
+    <p>About 40% of NPM1-mutated samples (37 of 100) have high NEK10, FTO and USP44. This group <b>matches two published NPM1 subgroups</b>: the "primitive" subtype of Mer et al. (<em>Nat Commun</em> 2021) and the IFEX9-high group of Arza-Apalategi et al. (<em>Leukemia</em> 2023). It is not a new finding. 32 of the 37 high samples look primitive by the Mer et al. markers, and the high group carries more TET2 (33% vs 11%) and IDH2 (39% vs 13%) mutations, while the low group carries all the NRAS and PTPN11 mutations.</p>
+    <figure>
+      <a class="zoom" href="figures/05_block_nek10_fto_usp44_wdr86.png" title="Open full size">
+        <img src="figures/05_block_nek10_fto_usp44_wdr86.png" width="2100" height="2100" loading="lazy"
+             alt="Four panels of NEK10, FTO, USP44 and WDR86 expression across the 100 NPM1-mutated samples, ordered by the three-gene score; a dashed line splits 63 low from 37 high samples.">
+      </a>
+      <figcaption><b>NEK10, FTO and USP44 within the 100 NPM1-mutated samples</b> (VST), ordered by the three-gene core score (mean z-score). Dashed line: two-cluster k-means split, <b>63 low, 37 high</b> (seed 2026). The three genes rise and fall together (Spearman 0.79 to 0.83), and hardly at all in wild-type samples. WDR86 is shown for comparison only: it follows FLT3-ITD (pink) instead of the other three, so it was dropped from the score. Read "FTO" here as the FTO locus / IFEX9 (section 6).</figcaption>
+    </figure>
+    <figure>
+      <a class="zoom" href="figures/06_subgroup_shared_vs_specific.png" title="Open full size">
+        <img src="figures/06_subgroup_shared_vs_specific.png" width="2400" height="2250" loading="lazy"
+             alt="Scatter plot of fold changes vs wild-type in the committed-like subgroup (x) and the primitive-like subgroup (y). HOX genes sit near the diagonal; NEK10, USP44 and FTO sit high on the y-axis.">
+      </a>
+      <figcaption><b>Which NPM1 genes are shared by both subgroups?</b> Each subgroup against NPM1 wild-type in a sensitivity DESeq2 model (<code>~ wave + specimen_type + sex + group</code>): committed-like NPM1-low (x, n = 63) and primitive-like NPM1-high (y, n = 37). The HOXA and HOXB genes sit near the diagonal, and HOXA9, HOXA10, MEIS1, PBX3 (up) and CD34 (down) pass in both subgroups (padj &lt; 1e-4): the HOX program belongs to NPM1-mutated AML as a whole. NEK10, USP44 and FTO sit straight up the y-axis, up only in the primitive-like group. Of the 1,019 main-model genes, 521 are shared, 381 mostly high and 117 mostly low ("mostly" = one subgroup's fold change is at least 2x the other's).</figcaption>
+    </figure>
+
+    <h2 id="fto">6. FTO, or a transcript inside FTO?</h2>
+    <figure>
+      <a class="zoom" href="figures/11_fto_coverage.png" title="Open full size">
+        <img src="figures/11_fto_coverage.png" width="3300" height="2700" loading="lazy"
+             alt="RNA-seq read coverage along the FTO gene in TCGA-LAML. The FTO-high samples match the others over exons 1 to 8, then jump at IFEX9 exon 1 in intron 8 and stay high through exon 9.">
+      </a>
+      <figcaption><b>Read coverage along FTO &plusmn; 20 kb in TCGA-LAML</b> (recount3, GRCh38, GENCODE v26), scaled to 40 million 100-base reads. Medians of the 6 NPM1-mutated FTO-high samples (orange; thin lines are each sample), 25 FTO-low (blue) and 80 wild-type (grey). A: the whole locus; B: zoom from the end of intron 8 to exon 9. FTO exons 1 to 8 are not higher in the high group (median 12.9 vs 18.2). Coverage jumps at IFEX9 exon 1 (median 256 vs 1.1), stays raised along the rest of intron 8 and lifts exon 9 (87 vs 6.2). In all 6 high samples reads splice from IFEX9 exon 1 onto FTO exon 9 (61 to 434 reads), and the canonical FTO junctions are not higher. So the "high FTO" signal is <b>IFEX9</b>, a transcript that starts inside FTO and shares only its last exon, as Arza-Apalategi et al. reported. Ensembl 75 lists it as one of FTO's own transcripts (FTO-007), which is why Beat AML's gene-level count calls it FTO. It should be read as "FTO locus / IFEX9", not as the FTO enzyme.</figcaption>
+    </figure>
+
+    <h2 id="drugs">7. Ex vivo drug response</h2>
+    <p>Beat AML tested each patient's leukaemia cells against a drug panel; lower AUC means fewer cells survive, so more sensitive. Matched to the same specimen as the RNA-seq (206 samples in the analysis set). Across 123 drugs, <b>no drug differs by NPM1 status at FDR &lt; 0.05</b> after adjusting for the monocyte-like score. <b>No menin inhibitor is in the Beat AML panel</b>, so the menin link stays at the level of expression.</p>
+    <figure>
+      <a class="zoom" href="figures/09_venetoclax.png" title="Open full size">
+        <img src="figures/09_venetoclax.png" width="3900" height="1500" loading="lazy"
+             alt="Three panels of venetoclax AUC: similar by NPM1 status; rising with the monocyte-like score; much lower in the NEK10/FTO/USP44-high group than the low group.">
+      </a>
+      <figcaption><b>Venetoclax (BCL-2 inhibitor).</b> A: NPM1-mutated vs wild-type (63 and 92 samples), adjusted difference &minus;16 AUC (FDR 0.35). B: AUC rises with the monocyte-like score, +13 per score unit (Spearman 0.64 in wild-type, 0.79 in mutated): immature AML cells lean on BCL-2, monocytic cells lean on MCL-1 and shrug venetoclax off. C: inside NPM1-mutated AML, the primitive-like (NEK10/FTO/USP44-high) group is far more sensitive than the committed-like group, median AUC 65 vs 204 (difference &minus;100, FDR 8e-6); adjusting for the monocyte-like score shrinks the gap to &minus;45, so maturity explains about half of it. Ex vivo single-drug AUC is a much cruder readout than a patient's response.</figcaption>
+    </figure>
+
+    <h2 id="survival">8. Survival (exploratory)</h2>
+    <p>Treatment varied a lot across Beat AML patients and isn't in any model, so these results are exploratory. 275 patients with follow-up, 133 deaths, median follow-up 35 months. Inside NPM1-mutated AML, the NEK10/FTO/USP44-high group's hazard ratio after adjusting for age and FLT3-ITD is 1.19 (95% CI 0.64 to 2.21): the same direction as Mer et al., but with 44 deaths the data can't tell a real effect from no effect.</p>
+    <figure>
+      <a class="zoom" href="figures/10_km_npm1_flt3.png" title="Open full size">
+        <img src="figures/10_km_npm1_flt3.png" width="3900" height="1800" loading="lazy"
+             alt="Kaplan-Meier curves. Left, NPM1-mutated vs wild-type, close together. Right, four NPM1 by FLT3-ITD groups; NPM1-mutated without FLT3-ITD does best, NPM1-mutated with FLT3-ITD worst.">
+      </a>
+      <figcaption><b>Overall survival, Beat AML main cohort.</b> Left: NPM1-mutated vs wild-type, adjusted for age, HR 0.70 (95% CI 0.49 to 1.01). Right: NPM1 x FLT3-ITD. The benefit sits in NPM1-mutated AML <b>without</b> FLT3-ITD (the ELN 2022 favorable group): HR 0.41 (0.25 to 0.67) against everyone else, 3-year survival 63%. NPM1-mutated with FLT3-ITD did no better than the wild-type baseline (3-year survival 30%). Taking the other favorable-risk AML (CBF, CEBPA) out of the comparison group barely moves the HR (0.38). This matches the clinic, which is a good sign the survival data and group labels make sense.</figcaption>
+    </figure>
+
+    <p class="small">Every number on this page comes from the project log, <a href="https://github.com/beckyzaza/npm1-aml-transcriptomics/blob/main/LEARNING.md">LEARNING.md</a>, where each analysis, decision and deviation is written up session by session. The tables behind the figures are in <a href="https://github.com/beckyzaza/npm1-aml-transcriptomics/tree/main/results">results/</a>.</p>
+  </div>
+</main>
+
+<footer class="site">
+  <div class="wrap">Data: Beat AML 2.0 (CC-BY-4.0; Bottomly et al., <em>Cancer Cell</em> 2022; Tyner et al., <em>Nature</em> 2018) and TCGA-LAML. Code: <a href="https://github.com/beckyzaza/npm1-aml-transcriptomics">github.com/beckyzaza/npm1-aml-transcriptomics</a>.</div>
+</footer>
+</body>
+</html>

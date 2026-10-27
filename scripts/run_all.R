@@ -17,7 +17,8 @@ scripts <- c(
   "scripts/08_tcga_replication.R",   # replication in TCGA-LAML (downloads ~650 MB)
   "scripts/09_drug_response.R",      # ex vivo drug response (AUC) by NPM1 status
   "scripts/10_survival.R",           # exploratory overall survival (Beat AML, TCGA)
-  "scripts/11_fto_locus.R"           # FTO vs IFEX9 in TCGA coverage (recount3)
+  "scripts/11_fto_locus.R",          # FTO vs IFEX9 in TCGA coverage (recount3)
+  "scripts/12_build_site.R"          # data files for the web page in docs/
 )
 
 if (!file.exists("CLAUDE.md")) stop("Run this from the repo root")
