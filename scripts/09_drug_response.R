@@ -199,7 +199,8 @@ print(head(res2[, .(inhibitor, n_wt, n_mut, auc_diff, ci_low, ci_high, p, fdr,
 class_cols <- setNames(c("#CC79A7", "#D55E00", "#E69F00", "#56B4E9", "#009E73",
                          "#0072B2", "#7F3C8D", "grey70"), class_levels)
 vol <- copy(res2)
-vol[, label := ifelse(inhibitor == "Venetoclax" | (fdr < fdr_cut & rank(p) <= 10),
+# Label venetoclax plus the 6 drugs with the smallest p-values
+vol[, label := ifelse(inhibitor == "Venetoclax" | rank(p) <= 6,
                       sub(" \\(.*\\)$", "", inhibitor), NA)]
 vol[, is_ven := inhibitor == "Venetoclax"]
 p_vol <- ggplot(vol, aes(auc_diff, -log10(fdr))) +
@@ -278,7 +279,6 @@ pb <- ggplot(ven, aes(Monocyte_like, auc, colour = NPM1_lab)) +
        x = "Monocyte-like score (Bottomly et al. 2022; higher = more monocytic)",
        y = "Venetoclax AUC") +
   theme_bw(base_size = 10) + theme(legend.position = "bottom")
-save_fig(pa + pb + plot_layout(widths = c(1, 1.6)), "09_venetoclax.png", w = 10, h = 5)
 
 # ---- 5. Menin inhibitors? ----------------------------------------------------
 # Search every drug name in the AUC file (all samples, not just ours) for
@@ -331,6 +331,22 @@ res6 <- merge(n_blk, res6, by = "inhibitor")
 res6 <- merge(res6, drugs[, .(inhibitor, drug_class)], by = "inhibitor")
 setorder(res6, p)
 fwrite(res6, "results/drug_subgroup_npm1.csv")
+
+# Venetoclax figure, panel C: venetoclax by NEK10/FTO/USP44 group (the
+# strongest subgroup difference), added to the step 4 figure.
+vm <- ven[NPM1_status == "mut"]
+pc <- ggplot(vm, aes(block_group, auc, fill = block_group)) +
+  geom_boxplot(outlier.shape = NA, alpha = 0.5, width = 0.6) +
+  geom_jitter(width = 0.15, size = 1, alpha = 0.7) +
+  scale_fill_manual(values = block_cols, guide = "none") +
+  labs(title = "C. Within NPM1-mutated",
+       subtitle = sprintf("n = %d low, %d high\nDifference %.0f (FDR %.2g)",
+                          sum(vm$block_group == "low"), sum(vm$block_group == "high"),
+                          res6[inhibitor == "Venetoclax", auc_diff],
+                          res6[inhibitor == "Venetoclax", fdr]),
+       x = "NEK10/FTO/USP44 group", y = "Venetoclax AUC") +
+  theme_bw(base_size = 10)
+save_fig(pa + pb + pc + plot_layout(widths = c(1, 1.6, 0.9)), "09_venetoclax.png", w = 13, h = 5)
 cat("Drugs at FDR <", fdr_cut, ":", sum(res6$fdr < fdr_cut), "\n")
 print(head(res6[, .(inhibitor, n_low, n_high, auc_diff, p, fdr, wilcox_p,
                     auc_diff_adj_flt3, p_adj_flt3, auc_diff_adj_monocyte)], 15), digits = 3)
@@ -368,8 +384,9 @@ save_fig(p6, "09_subgroup_kinase_inhibitors.png", w = 8, h = 4.8)
 # (>= 10 reads in >= 100 samples). HOX score = mean VST of the four genes
 # (roughly log2 scale). For each drug: auc ~ NPM1_status + HOX_score; the HOX
 # coefficient is the AUC change per 1 VST unit of HOX score at the same NPM1
-# status. BH across drugs. Extra column: also adjusted for the monocyte-like
-# score. Same drug set rule as step 2.
+# status. BH across drugs. Extra columns: also adjusted for the monocyte-like
+# score, and for FLT3-ITD (FLT3 inhibitors turned out to lead the list, and
+# FLT3-ITD itself makes cells sensitive to them). Same drug set rule as step 2.
 raw <- fread(counts_file, check.names = FALSE)
 cm <- as.matrix(raw[, cohort$dbgap_rnaseq_sample, with = FALSE])
 rownames(cm) <- raw$stable_id
@@ -397,40 +414,29 @@ res7 <- rbindlist(lapply(keep2, function(dr) {
   h <- fit_drug(dd, auc ~ NPM1_status + HOX_score, "HOX_score")
   n <- fit_drug(dd, auc ~ NPM1_status + HOX_score, "NPM1_statusmut")
   hm <- fit_drug(dd, auc ~ NPM1_status + HOX_score + Monocyte_like, "HOX_score")
+  hf <- fit_drug(dd, auc ~ NPM1_status + HOX_score + FLT3_ITD, "HOX_score")
   data.table(inhibitor = dr, n = nrow(dd),
              hox_coef = h$estimate, ci_low = h$ci_low, ci_high = h$ci_high, p = h$p,
              npm1_coef_with_hox = n$estimate, npm1_p_with_hox = n$p,
-             hox_coef_adj_monocyte = hm$estimate, p_adj_monocyte = hm$p)
+             hox_coef_adj_monocyte = hm$estimate, p_adj_monocyte = hm$p,
+             hox_coef_adj_flt3 = hf$estimate, p_adj_flt3 = hf$p)
 }))
 res7[, fdr := p.adjust(p, method = "BH")]
 res7[, fdr_adj_monocyte := p.adjust(p_adj_monocyte, method = "BH")]
+res7[, fdr_adj_flt3 := p.adjust(p_adj_flt3, method = "BH")]
 res7 <- merge(res7, drugs[, .(inhibitor, drug_class)], by = "inhibitor")
 setorder(res7, p)
 fwrite(res7, "results/drug_hox_score.csv")
 cat("Step 7: drugs where HOX score tracks AUC beyond NPM1 status, FDR <", fdr_cut, ":",
     sum(res7$fdr < fdr_cut), "(also with monocyte-like:",
-    sum(res7$fdr_adj_monocyte < fdr_cut), ")\n")
+    sum(res7$fdr_adj_monocyte < fdr_cut), "| with FLT3-ITD:", sum(res7$fdr_adj_flt3 < fdr_cut), ")\n")
 print(head(res7[, .(inhibitor, n, hox_coef, p, fdr, npm1_coef_with_hox,
-                    hox_coef_adj_monocyte, fdr_adj_monocyte)], 15), digits = 3)
-
-top7 <- head(res7[fdr < fdr_cut], 6)$inhibitor
-if (length(top7) > 0) {
-  hp <- d[inhibitor %in% top7]
-  hp[, drug := factor(sub(" \\(.*\\)$", "", inhibitor),
-                      levels = sub(" \\(.*\\)$", "", top7))]
-  hp[, NPM1_lab := factor(ifelse(NPM1_status == "mut", "NPM1-mutated", "NPM1 wild-type"),
-                          levels = c("NPM1 wild-type", "NPM1-mutated"))]
-  p7 <- ggplot(hp, aes(HOX_score, auc, colour = NPM1_lab)) +
-    geom_point(size = 0.9, alpha = 0.7) +
-    geom_smooth(method = "lm", formula = y ~ x, se = FALSE, linewidth = 0.7) +
-    facet_wrap(~ drug, scales = "free_y") +
-    scale_colour_manual(values = lab_cols, name = NULL) +
-    labs(title = "Drugs whose AUC tracks the HOX score beyond NPM1 status",
-         subtitle = "HOX score = mean VST of HOXA9, HOXA10, MEIS1, PBX3; top drugs by p (FDR < 0.05)",
-         x = "HOX score (VST)", y = "AUC (lower = more sensitive)") +
-    theme_bw(base_size = 10) + theme(legend.position = "bottom")
-  save_fig(p7, "09_hox_score_drugs.png", w = 9, h = 6)
-}
+                    hox_coef_adj_monocyte, fdr_adj_monocyte, hox_coef_adj_flt3,
+                    p_adj_flt3)], 15), digits = 3)
+cat("HOX score by FLT3-ITD within NPM1-mutated (median):\n")
+print(tapply(an$HOX_score[an$NPM1 == "mut"], an$FLT3_ITD[an$NPM1 == "mut"], median))
+cat("...and within wild-type:\n")
+print(tapply(an$HOX_score[an$NPM1 == "wt"], an$FLT3_ITD[an$NPM1 == "wt"], median))
 
 fwrite(an %>% select(dbgap_rnaseq_sample, NPM1, block_group, FLT3_ITD,
                      Monocyte_like, HSC_like, HOX_score),

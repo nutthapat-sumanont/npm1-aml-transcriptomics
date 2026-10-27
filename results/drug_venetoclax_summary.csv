@@ -1,0 +1,5 @@
+"quantity","estimate","p","fdr_step2"
+"NPM1 mut - wt, adjusted for monocyte-like",-16.3053963821748,0.0731584470420707,0.346095730237488
+"NPM1 mut - wt, unadjusted",-8.45895861626451,0.514630957604787,NA
+"Monocyte-like (per score unit), adjusted for NPM1",13.015966076981,6.71186730562726e-26,NA
+"Interaction NPM1 x monocyte-like",1.12058701636279,0.584195908794232,NA
