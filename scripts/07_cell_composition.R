@@ -278,5 +278,226 @@ cat("\nVariance in each gene explained by NPM1 status, the six scores, or both (
 print(r2 %>% mutate(across(-gene, ~ round(.x, 2))), row.names = FALSE)
 write.csv(r2, "results/celltype_score_gene_r2.csv", row.names = FALSE)
 
-writeLines(capture.output(sessionInfo()), "results/sessionInfo_07_cell_composition.txt")
+# ---- 7. Sensitivity DESeq2 with cell-type scores -----------------------------
+# Approved in Session 6. Extra models only; the main model (04_deseq2.R) is
+# unchanged. All three fits use the same 270 samples (those with scores):
+#
+#   main_270:  ~ wave + specimen_type + sex + NPM1_status
+#              (the main design refit on the 270, so we can tell what changes
+#              because 6 samples are gone from what changes because of the
+#              adjustment)
+#   two_score: ~ wave + specimen_type + sex + HSC_like + Monocyte_like + NPM1_status
+#              THE sensitivity model. HSC-like and Monocyte-like are the two
+#              ends of the hierarchy; together they predict NPM1 with AUC 0.75.
+#   all_six:   ~ wave + specimen_type + sex + all six scores + NPM1_status
+#              UPPER BOUND ONLY, not a result. The six scores predict NPM1
+#              with AUC 0.93, so this model removes NPM1 biology along with
+#              cell maturity. It shows the most "cell type" could explain.
+#
+# Wave has only two levels here: none of the wave "Both" samples has scores.
+# Scores are scaled to mean 0, SD 1 before fitting (a numerical convenience;
+# it doesn't change the NPM1 coefficient). Same 19,398 genes as the main
+# model, so every gene can be compared one to one.
+
+suppressPackageStartupMessages(library(BiocParallel))
+register(MulticoreParam(max(1, min(4, parallel::detectCores()))))
+lfc_cut   <- 1
+coef_name <- "NPM1_status_mut_vs_wt"
+
+cd <- sc %>%
+  mutate(specimen_type = factor(ifelse(specimenType == "Bone Marrow Aspirate",
+                                       "BM", "Blood"), levels = c("BM", "Blood")),
+         wave = droplevels(factor(cohort, levels = c("Waves1+2", "Waves3+4", "Both"))),
+         sex  = factor(consensus_sex, levels = c("Female", "Male")))
+score_vars <- gsub("-", "_", cell_types)          # HSC-like -> HSC_like
+for (i in seq_along(cell_types)) cd[[score_vars[i]]] <- as.numeric(scale(cd[[cell_types[i]]]))
+rownames(cd) <- cd$dbgap_rnaseq_sample
+stopifnot(nrow(cd) == 270, nlevels(cd$wave) == 2)
+cat("\nDESeq2 sensitivity: ", nrow(cd), " samples (", sum(cd$NPM1 == "mut"),
+    " NPM1-mut, ", sum(cd$NPM1 == "wt"), " wt); wave levels: ",
+    paste(levels(cd$wave), collapse = ", "), "\n", sep = "")
+
+counts_dds <- as.matrix(raw[, cd$dbgap_rnaseq_sample, with = FALSE])
+rownames(counts_dds) <- raw$stable_id
+storage.mode(counts_dds) <- "integer"
+counts_dds <- counts_dds[main$gene_id, ]          # same genes as the main model
+stopifnot(identical(colnames(counts_dds), rownames(cd)))
+
+designs <- list(
+  main_270  = ~ wave + specimen_type + sex + NPM1_status,
+  two_score = ~ wave + specimen_type + sex + HSC_like + Monocyte_like + NPM1_status,
+  all_six   = as.formula(paste("~ wave + specimen_type + sex +",
+                               paste(score_vars, collapse = " + "), "+ NPM1_status")))
+model_signatures <- list(main_270 = character(0),
+                         two_score = c("HSC-like", "Monocyte-like"),
+                         all_six = cell_types)
+
+fit_one <- function(design) {
+  cat("Fitting", deparse(design, width.cutoff = 500), "...\n")
+  dds <- DESeqDataSetFromMatrix(counts_dds, colData = cd, design = design)
+  dds <- DESeq(dds, parallel = TRUE, quiet = TRUE)
+  res <- results(dds, name = coef_name, alpha = padj_cut)
+  shr <- lfcShrink(dds, coef = coef_name, type = "apeglm", res = res,
+                   parallel = TRUE, quiet = TRUE)
+  data.frame(gene_id = rownames(res), log2FC = shr$log2FoldChange,
+             stat = res$stat, padj = res$padj) %>%
+    arrange(desc(abs(stat))) %>%
+    mutate(rank = row_number(),
+           sig = !is.na(padj) & padj < padj_cut & abs(log2FC) > lfc_cut)
+}
+fits <- lapply(designs, fit_one)
+
+# One wide table: main model (276, from 04_deseq2.R) plus the three new fits
+wide <- main %>% select(gene_id, symbol, log2FC_main = log2FC, padj_main = padj,
+                        rank_main = rank, sig_main = sig)
+for (m in names(fits)) {
+  f <- fits[[m]]
+  names(f)[-1] <- paste0(names(f)[-1], "_", m)
+  wide <- left_join(wide, f, by = "gene_id")
+}
+wide$in_signature <- vapply(wide$symbol, in_sig, "")
+stopifnot(nrow(wide) == nrow(main), !anyNA(wide$log2FC_all_six))
+write.csv(wide %>% arrange(rank_main), "results/deseq2_celltype_adjusted.csv", row.names = FALSE)
+cat("Saved results/deseq2_celltype_adjusted.csv (", nrow(wide), " genes)\n", sep = "")
+
+# ---- 8. What survives? -------------------------------------------------------
+# "Survives" = padj < 0.05 in the expected direction (same rule as Session 3).
+# A positive control is flagged "partly circular" in a model if it is one of
+# the 30 genes behind a score in that model's design: the model then partly
+# adjusts the gene for itself. Among all positive controls (HOXA9, HOXA10,
+# HOXB cluster, MEIS1, PBX3, CD34) only MEIS1 is in a signature (HSC-like).
+
+hoxb <- sort(grep("^HOXB[0-9]+$", main$symbol, value = TRUE))
+pc_all <- c("HOXA9", "HOXA10", hoxb, "MEIS1", "PBX3", "CD34")
+in_any <- intersect(pc_all, vg_genes$symbol)
+cat("\nPositive controls (incl. HOXB cluster) inside a van Galen signature:",
+    paste(in_any, collapse = ", "), "\n")
+
+pc_long <- bind_rows(lapply(c("main", names(fits)), function(m) {
+  w <- wide %>% filter(symbol %in% pc_all)
+  lfc  <- w[[paste0("log2FC_", m)]]
+  padj <- w[[paste0("padj_", m)]]
+  expected <- ifelse(w$symbol == "CD34", "down", "up")
+  circular <- if (m == "main") rep(FALSE, nrow(w)) else
+    vapply(w$symbol, function(g) any(vg_genes$symbol[vg_genes$cell_type %in%
+                                                       model_signatures[[m]]] == g), TRUE)
+  data.frame(model = m, symbol = w$symbol, expected = expected,
+             log2FC = lfc, padj = padj,
+             pct_of_main_270_lfc = if (m == "main") NA else
+               100 * lfc / w$log2FC_main_270,
+             survives = !is.na(padj) & padj < padj_cut &
+               sign(lfc) == ifelse(expected == "up", 1, -1),
+             partly_circular = circular,
+             core_control = w$symbol %in% controls)
+})) %>% mutate(model = factor(model, levels = c("main", names(fits))),
+               symbol = factor(symbol, levels = pc_all)) %>%
+  arrange(symbol, model)
+write.csv(pc_long, "results/deseq2_celltype_controls.csv", row.names = FALSE)
+cat("\nCore positive controls by model (log2FC, padj; * = partly circular):\n")
+print(pc_long %>% filter(core_control) %>%
+        mutate(log2FC = round(log2FC, 2), padj = signif(padj, 2),
+               pct_of_main_270_lfc = round(pct_of_main_270_lfc),
+               flag = ifelse(partly_circular, "*", "")) %>%
+        select(symbol, model, log2FC, padj, pct_of_main_270_lfc, survives, flag),
+      row.names = FALSE)
+cat("HOXB genes surviving: ", paste(sapply(names(fits), function(m)
+  sprintf("%s %d/%d", m, sum(pc_long$survives[pc_long$model == m & grepl("^HOXB", pc_long$symbol)]),
+          length(hoxb))), collapse = "; "), "\n", sep = "")
+
+# Top 50 genes and fold-change agreement, each model vs the main model (276)
+# and vs the main design on the same 270 samples.
+top50_ids <- head(main$gene_id, 50)
+summ7 <- bind_rows(lapply(names(fits), function(m) {
+  f <- fits[[m]]
+  lf <- wide[[paste0("log2FC_", m)]]
+  data.frame(model = m,
+             role = c(main_270 = "same samples, main design",
+                      two_score = "sensitivity model",
+                      all_six = "UPPER BOUND, not a result")[[m]],
+             top50_in_top50 = sum(top50_ids %in% head(f$gene_id, 50)),
+             top50_still_sig = sum(top50_ids %in% f$gene_id[f$sig]),
+             top50_same_direction = sum(sign(wide$log2FC_main[1:50]) ==
+                                        sign(lf[match(top50_ids, wide$gene_id)])),
+             n_sig = sum(f$sig), n_up = sum(f$sig & f$log2FC > 0),
+             n_down = sum(f$sig & f$log2FC < 0),
+             sig_shared_with_main = length(intersect(f$gene_id[f$sig], main$gene_id[main$sig])),
+             lfc_pearson_vs_main = cor(wide$log2FC_main, lf),
+             lfc_spearman_vs_main = cor(wide$log2FC_main, lf, method = "spearman"),
+             lfc_pearson_vs_main_270 = cor(wide$log2FC_main_270, lf),
+             # slope through 0 over the 1,019 main-model genes, adjusted model
+             # vs main design on the same 270: 1 = fold changes unchanged,
+             # 0.6 = on average 40% smaller
+             lfc_slope_vs_main_270 = unname(coef(lm(lf[wide$sig_main] ~
+                                                      0 + wide$log2FC_main_270[wide$sig_main]))[1]),
+             top50_dropped = paste(main$symbol[1:50][!top50_ids %in% f$gene_id[f$sig]],
+                                   collapse = ";"))
+}))
+summ7 <- bind_rows(data.frame(model = "main", role = "main model, 276 samples (04_deseq2.R)",
+                              top50_in_top50 = 50, top50_still_sig = sum(main$sig[1:50]),
+                              top50_same_direction = 50,
+                              n_sig = sum(main$sig), n_up = sum(main$direction == "up"),
+                              n_down = sum(main$direction == "down"),
+                              sig_shared_with_main = sum(main$sig),
+                              lfc_pearson_vs_main = 1, lfc_spearman_vs_main = 1,
+                              lfc_pearson_vs_main_270 = cor(wide$log2FC_main, wide$log2FC_main_270),
+                              lfc_slope_vs_main_270 = NA, top50_dropped = ""),
+                   summ7)
+cat("\nSummary, each model vs the main model (top 50 = main-model top 50 by |Wald stat|):\n")
+print(summ7 %>% mutate(across(where(is.double), ~ round(.x, 3))) %>% select(-top50_dropped),
+      row.names = FALSE)
+for (m in names(fits)) cat("Top 50 genes no longer significant in", m, ":",
+                           summ7$top50_dropped[summ7$model == m], "\n")
+write.csv(summ7, "results/deseq2_celltype_summary.csv", row.names = FALSE)
+
+# Figure: shrunken log2FC, main model on 270 (x) vs each adjusted model (y).
+# Colours = main-model up / down / ns; labels = positive controls (* = partly
+# circular in that model) and top 10 genes.
+lab_genes <- unique(c(controls, head(main$symbol, 10)))
+plot_df <- bind_rows(lapply(c("two_score", "all_six"), function(m) {
+  circ <- if (m == "two_score") intersect(lab_genes, vg_genes$symbol[vg_genes$cell_type %in% model_signatures$two_score])
+          else intersect(lab_genes, vg_genes$symbol)
+  data.frame(model = m, x = wide$log2FC_main_270, y = wide[[paste0("log2FC_", m)]],
+             symbol = wide$symbol,
+             direction = factor(ifelse(!wide$sig_main, "ns",
+                                       ifelse(wide$log2FC_main > 0, "up", "down")),
+                                levels = c("up", "down", "ns"))) %>%
+    mutate(label = ifelse(symbol %in% lab_genes,
+                          paste0(symbol, ifelse(symbol %in% circ, "*", "")), NA))
+}))
+s_two <- summ7[summ7$model == "two_score", ]
+s_six <- summ7[summ7$model == "all_six", ]
+plot_df$model <- factor(plot_df$model, levels = c("two_score", "all_six"), labels = c(
+  sprintf("Sensitivity model: + HSC-like + Monocyte-like\nr = %.2f, slope %.2f; top 50 still significant: %d/50",
+          cor(wide$log2FC_main_270, wide$log2FC_two_score), s_two$lfc_slope_vs_main_270,
+          s_two$top50_still_sig),
+  sprintf("UPPER BOUND (not a result): + all six scores\nr = %.2f, slope %.2f; top 50 still significant: %d/50",
+          cor(wide$log2FC_main_270, wide$log2FC_all_six), s_six$lfc_slope_vs_main_270,
+          s_six$top50_still_sig)))
+dir_cols <- c(up = "#D55E00", down = "#0072B2", ns = "grey80")
+lim <- range(c(plot_df$x, plot_df$y))
+p <- ggplot(plot_df, aes(x, y)) +
+  geom_hline(yintercept = 0, colour = "grey70") +
+  geom_vline(xintercept = 0, colour = "grey70") +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", colour = "grey40") +
+  geom_point(data = ~ filter(.x, direction == "ns"), colour = "grey80", size = 0.4) +
+  geom_point(data = ~ filter(.x, direction != "ns"), aes(colour = direction),
+             size = 0.6, alpha = 0.7) +
+  ggrepel::geom_label_repel(aes(label = label), size = 2.5, max.overlaps = Inf,
+                            min.segment.length = 0, fill = alpha("white", 0.8),
+                            na.rm = TRUE) +
+  facet_wrap(~ model) +
+  scale_colour_manual(values = dir_cols, name = "Main model (276)",
+                      breaks = c("up", "down")) +
+  coord_equal(xlim = lim, ylim = lim) +
+  labs(x = "log2FC NPM1-mut vs wt, main design on the same 270 samples (apeglm)",
+       y = "log2FC NPM1-mut vs wt, adjusted for cell-type scores (apeglm)",
+       title = "How much of the NPM1 signal survives adjustment for cell maturity?",
+       subtitle = paste0("Dashed line = no change. Slope = average fold-change ratio across the 1,019 main-model genes (1 = unchanged).\n",
+                         "* = partly circular: the gene is one of the 30 genes behind a score in that model.")) +
+  theme_bw(base_size = 9) + theme(legend.position = "bottom")
+save_fig(p, "07_celltype_adjusted_lfc.png", w = 11, h = 6.8)
+
+writeLines(c(paste("Designs:", vapply(designs, function(d) deparse(d, width.cutoff = 500), "")),
+             capture.output(sessionInfo())),
+           "results/sessionInfo_07_cell_composition.txt")
 cat("\nDone.\n")
