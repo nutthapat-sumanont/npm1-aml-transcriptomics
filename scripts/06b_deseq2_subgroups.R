@@ -1,6 +1,7 @@
 # 06b_deseq2_subgroups.R
 # Sensitivity DESeq2 (extra model only; the main model in 04_deseq2.R is
-# unchanged). Splits NPM1-mutated AML into the two Session 4 groups:
+# unchanged). Splits NPM1-mutated AML into the two NEK10/FTO/USP44 groups
+# (three-gene k-means split since Session 8; 05_enrichment.R):
 #
 #   group = wt (reference) | NPM1_high (primitive-like) | NPM1_low (committed-like)
 #   design: ~ wave + specimen_type + sex + group
@@ -41,8 +42,9 @@ save_fig <- function(p, file, w = 7, h = 5) {
 }
 
 # ---- Cohort and design -------------------------------------------------------
-# Same factor coding as 04_deseq2.R. The high/low split is the Session 4
-# k-means split of the NEK10/FTO/USP44 block score (39 high, 61 low).
+# Same factor coding as 04_deseq2.R. The high/low split is the k-means split
+# of the three-gene NEK10/FTO/USP44 core score (Session 8 definition; Session 4
+# used four genes including WDR86 and gave 39 high / 61 low).
 
 block <- read.csv("results/block_nek10_fto_scores.csv")
 cohort <- read.csv("results/cohort.csv") %>%
@@ -103,8 +105,8 @@ stopifnot(nrow(tab) == nrow(main))
 # ---- (c) Shared vs subgroup-driven, among the 1,019 main-model genes ---------
 # Two views, because they answer slightly different questions:
 #  1. Significance: is the gene padj < 0.05 in the main-model direction in each
-#     contrast? Note the low group (n = 61) has more power than the high
-#     group (n = 39), so this view favours "low only".
+#     contrast? Note the low group is bigger and has more power than the
+#     high group, so this view favours "low only".
 #  2. Fold change (doesn't depend on group size): shared if neither
 #     subgroup's |log2FC| is more than 2x the other's (and both go the
 #     main-model way); otherwise driven mostly by the larger one.
@@ -182,8 +184,10 @@ p <- ggplot(plot_tab, aes(log2FC_low_vs_wt, log2FC_high_vs_wt)) +
   labs(title = "Which NPM1 genes are shared by both subgroups?",
        subtitle = paste0("Each subgroup vs NPM1 wild-type (apeglm log2FC); grey = not in the main-model list\n",
                          "'Mostly' = one subgroup's fold change is at least 2x the other's"),
-       x = "log2FC, NPM1-low (committed-like, n = 61) vs wild-type",
-       y = "log2FC, NPM1-high (primitive-like, n = 39) vs wild-type") +
+       x = sprintf("log2FC, NPM1-low (committed-like, n = %d) vs wild-type",
+                   sum(cohort$group == "NPM1_low")),
+       y = sprintf("log2FC, NPM1-high (primitive-like, n = %d) vs wild-type",
+                   sum(cohort$group == "NPM1_high"))) +
   theme_bw(base_size = 10)
 save_fig(p, "06_subgroup_shared_vs_specific.png", w = 8, h = 7.5)
 

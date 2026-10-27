@@ -15,7 +15,7 @@
 #     controls and top 50 NPM1 genes sit inside a signature.
 #  3. Compare each score between NPM1-mutated and wild-type (main cohort).
 #  4. Compare each score between the NEK10/FTO/USP44-high and -low
-#     NPM1-mutated samples (Session 4 split).
+#     NPM1-mutated samples (three-gene k-means split since Session 8).
 #  5. Figure: figures/07_celltype_scores.png.
 #  6. How the scores relate to each other and to the positive-control genes.
 #  7. Sensitivity DESeq2 on the 270 samples with scores: main design refit,

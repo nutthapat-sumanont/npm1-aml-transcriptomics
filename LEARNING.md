@@ -565,3 +565,119 @@ Three fits, all on the same 270 samples and the same 19,398 genes. Wave has two 
 - *Extra outputs not asked for:* co-mutation tables (`results/tcga_block_comutations.csv`, including the post hoc TET2/IDH1/IDH2 row), the per-sample signature scores, `results/tcga_pca_r2.csv`, `results/tcga_block_summary.csv`.
 - *Packages:* pROC (ROC curves and DeLong confidence intervals) installed from r2u; pROC, patchwork and httr added to `setup/cloud_setup.sh`. `scripts/run_all.R` now runs 08 after 06b (07 is left for the Session 6 script).
 - *`data/` re-downloaded* with `scripts/01_download.R` (new container); nothing in it is committed.
+
+## Session 8 (2026-10-27): the pharma angle, ex vivo drug response (`scripts/09_drug_response.R`)
+
+**Headline.** NPM1 status on its own barely moves ex vivo drug response: no drug passes FDR 0.05. Cell maturity matters far more, and inside NPM1-mutated AML the primitive-like (NEK10/FTO/USP44-high) and committed-like groups respond very differently: venetoclax works much better in the primitive-like group, MEK inhibitors and panobinostat in the committed-like group. The Mer et al. kinase-inhibitor result (sorafenib, sunitinib, quizartinib) doesn't come back clearly. No menin inhibitor is in the Beat AML panel.
+
+### Step 0a: NEK10/FTO/USP44 group, three genes only
+
+**What we did.** In `scripts/05_enrichment.R` step 8, the group is now defined by NEK10, FTO and USP44 only: core score = mean z-score of the three genes (VST) across the 100 NPM1-mutated samples, then two-cluster k-means (seed 2026). WDR86 is dropped because it follows FLT3-ITD, not the other three. The old four-gene score and split are kept as `score_4gene` / `group_4gene` in `results/block_nek10_fto_scores.csv` so the change is visible. Reran `05`, `06_subgroup.R`, `06b_deseq2_subgroups.R` and (extra) `07_cell_composition.R`. New definition recorded in CLAUDE.md.
+
+**Key numbers**
+- New split: **37 high, 63 low** (was 39 / 61). **4 of 100 samples change group** (`results/block_split_changes.csv`): BA2479R, BA3454R and BA3306R go high to low (two are FLT3-ITD positive, pulled up by WDR86), BA2024R goes low to high. Bimodality coefficient 0.73 (four-gene: 0.70).
+- The 4 movers all sit near the cut-off, which is why so few move.
+- With WDR86 gone, the link to FLT3-ITD weakens: core score vs FLT3-ITD p = 0.08 (four-gene score p = 0.001). The borderline wave (p = 0.04) and ELN2017 (p = 0.05) associations from Session 4 disappear (p = 0.20 and 0.62). That fits Session 4's guess that ELN2017 was the WDR86 / FLT3 link showing through.
+- Session 5 results with the new split (old values in brackets):
+
+| | Low (n = 63) | High (n = 37) | BH padj |
+|---|---|---|---|
+| TET2 | 11% (12%) | 33% (32%) | 0.031 |
+| IDH2 | 13% (15%) | 39% (35%) | 0.013 |
+| DNMT3A | 57% (57%) | 25% (27%) | 0.011 |
+| PTPN11 | 25% | 0% | 0.008 |
+| NRAS | 20% | 0% | 0.011 |
+| FLT3-ITD | 35% (34%) | 51% (51%) | 0.20 |
+
+  NPM1 + FLT3-ITD + (TET2 or IDH2): 11 of 36 high vs 4 of 61 low (p = 0.003; was 10 vs 5). Primitive call: 32 of 37 high are primitive-like and 54 of 63 low are committed-like (Fisher p = 5e-13; was 35/39 and 55/61). Primitive score vs core score: Spearman 0.91 (unchanged).
+- Subgroup DESeq2 (`06b`): every positive control still passes in both subgroups (padj < 1e-4). Of the 1,019 main-model genes: **521 shared, 381 mostly high, 117 mostly low** (was 513 / 388 / 118). By significance: 815 both, 119 high only, 77 low only, 8 neither (was 800 / 142 / 70 / 7).
+- Cell-type scores (`07`), high vs low: still much less Monocyte-like (Glass d -1.12, padj 9e-6) and cDC-like (d -1.75, padj 7e-10), more Progenitor-like (d +0.56, padj 0.02). Promono-like is no longer significant (padj 0.11, was 0.015). The cell-type DESeq2 tables didn't change (they don't use the split).
+
+### Step 0b: TET2, IDH1 or IDH2
+
+- **30 of 36 high (83%) vs 23 of 61 low (38%)**, odds ratio 8.1 (95% CI 2.8 to 27), Fisher p = 2e-5 (`results/subgroup_tet2_idh1_idh2.csv`).
+- **This is a consistency check, not an independent test.** The "TET2, IDH1 or IDH2" grouping was formed after looking at TCGA in Session 7, and the idea came partly from Beat AML itself (TET2 and IDH2 were already higher in the high group in Session 5). So Beat AML can't confirm it; it can only say "the data we partly learned this from are consistent with it". Most of the signal is TET2 and IDH2, which we already knew about; IDH1 is about equal in the two groups here (11% vs 13%). A proper test needs a third cohort.
+
+### Steps 1 to 7: drug response
+
+**What the drug data are.** Beat AML put each patient's fresh leukaemia cells into plates with 7 doses of each drug and measured how many cells were alive after 3 days. A curve was fitted to viability vs dose and the area under it (AUC) summarises it: **lower AUC = fewer cells survive = more sensitive**. AUC runs from 0 to about 300 here.
+
+**Step 1, matching.** The AUC file carries the RNA-seq ID of the specimen each drug was tested on, so joining on that ID guarantees the drug and RNA results come from the same tube of cells.
+
+| | n | NPM1 mut | NPM1 wt |
+|---|---|---|---|
+| Main cohort | 276 | 100 | 176 |
+| Drug data on the same specimen as RNA-seq | **211** | 83 | 128 |
+| No drug data on that specimen | 65 | 17 | 48 |
+| ...drug data only on another specimen of the same patient (not used) | 5 | 0 | 5 |
+| Same specimen and a monocyte-like score (**analysis set**) | **206** | 80 | 126 |
+
+- No duplicate drug-sample pairs. 2 non-converged curve fits dropped. 166 drugs in the file, 165 tested on our samples. All are single drugs (no combinations in this file).
+- `beataml_drug_families.xlsx` added to `scripts/01_download.R`. It maps 117 of the 166 drugs to 86 target families; 49 drugs (cytarabine, azacytidine, gilteritinib, JQ1, ...) aren't in it.
+
+**Step 2, NPM1-mutated vs wild-type, every drug.** For each drug, `auc ~ NPM1_status + Monocyte_like`; the NPM1 coefficient is the difference in mean AUC at the same monocyte-like score.
+- **123 drugs tested, 42 skipped** (fewer than 20 tested samples in a group; many drugs were only added to the panel later or dropped early).
+- **No drug at FDR < 0.05.** Two at FDR < 0.1: SNS-032 (a CDK inhibitor, -21, FDR 0.076) and JNJ-7706621 (CDK/Aurora, -15, FDR 0.089). 22 at nominal p < 0.05, 20 of them lower in NPM1-mutated.
+- **A general lean:** 90 of 123 drugs have lower AUC in NPM1-mutated cells. When nearly every drug looks a bit better in one group, part of it may be how well those cells survive in the dish rather than anything drug-specific. Worth keeping in mind before calling any single drug "NPM1-selective".
+- Sorafenib -14 (FDR 0.23), quizartinib -12 (0.40), sunitinib -8 (0.49), gilteritinib -15 (0.50), cytarabine -7 (0.74), azacytidine -8 (0.72), midostaurin -1 (0.96).
+
+**Step 3, drug volcano** (`figures/09_drug_volcano.png`). x = adjusted AUC difference, y = -log10 FDR, colour = broad drug class from the family table. Nothing crosses the FDR line. Venetoclax and the six drugs with the smallest p are labelled.
+
+**Step 4, venetoclax** (`figures/09_venetoclax.png`).
+- NPM1-mutated vs wild-type: **-16 adjusted (p = 0.07, FDR 0.35)**, -8 unadjusted (p = 0.51). n = 92 wt, 63 mut (venetoclax was tested on fewer samples).
+- **Monocyte-like score vs venetoclax AUC: +13 AUC per score unit (p = 7e-26)**; Spearman 0.64 in wild-type and 0.79 in mutated. No sign the slope differs by NPM1 status (interaction p = 0.58).
+- Within NPM1-mutated: primitive-like (high) median AUC **65** vs committed-like (low) **204**, difference -100 (FDR 8e-6, step 6). Adjusting for the monocyte-like score shrinks it to -45 (p = 0.002), so maturity explains about half of it.
+
+**Why cell maturity matters for venetoclax.** Venetoclax blocks BCL-2, a protein that stops cells from switching on their self-destruct programme (apoptosis). Immature AML cells, the stem- and progenitor-like ones, lean heavily on BCL-2 to stay alive, so blocking it kills them. As AML cells mature towards monocytes they make less BCL-2 and lean on a different survival protein, MCL-1, instead. Venetoclax doesn't touch MCL-1, so monocytic cells shrug it off. Pei et al. (Cancer Discov 2020) showed this in patients: primitive AML responded to venetoclax + azacitidine, monocytic AML resisted, and monocytic clones grew back at relapse. Zhang et al. (Nat Cancer 2020) found the same in Beat AML's own drug data. So:
+- the monocyte-like score is the main thing that predicts venetoclax response here, far more than NPM1 status;
+- NPM1-mutated AML is a mix: the primitive-like subgroup is very venetoclax-sensitive, the committed-like (monocytic) subgroup isn't, and averaged together they look ordinary;
+- that's why adjusting for the score turns the NPM1 difference from -8 into -16: at the same maturity, NPM1-mutated cells lean slightly more sensitive. Clinically NPM1-mutated AML does respond well to venetoclax + azacitidine; ex vivo single-drug AUC is a much cruder readout than a patient's response.
+
+**Step 5, menin inhibitors.** **No menin inhibitor is in the Beat AML panel.** I searched all 166 drug names for revumenib (SNDX-5613), ziftomenib (KO-539), bleximenib, enzomenib, the MI- compounds, VTP-50469 and others: zero hits. No DOT1L inhibitor either (the other drug class aimed at the KMT2A / HOXA9 machinery). The Beat AML drug panel was put together before menin inhibitors were available for this kind of screening. So the menin link in this project stays at the level of expression (the HOX program), not drug response. Testing it would need data like the menin-inhibitor screens in cell lines or newer patient cohorts.
+
+**Step 6, NEK10/FTO/USP44-high vs -low inside NPM1-mutated** (report only; 80 samples: 32 high, 48 low; 113 drugs tested, 42 skipped by the 20-per-group rule). `auc ~ block_group`, BH across drugs.
+- **15 drugs at FDR < 0.05.** Lower AUC in the primitive-like (high) group: **venetoclax** (-100), GSK-1838705A (IGF1R/ALK, -60), lenalidomide (-78), PHA-665752 (MET, -46), NVP-TAE684 (ALK, -55), KU-55933 (ATM, -48), MLN8054 (Aurora A), erlotinib. Lower AUC in the committed-like (low) group: **panobinostat** (HDAC, +116 in high, median AUC 37 vs 192), **selumetinib and trametinib (MEK)**, nilotinib, motesanib, 17-AAG (HSP90), JQ1 (BET).
+- The MEK result fits Session 5: all the NRAS and PTPN11 mutations are in the committed-like group, and cells driven by the RAS pathway depend on MEK.
+- All 15 stay significant after adjusting for FLT3-ITD. After adjusting for the monocyte-like score most shrink (venetoclax by more than half, panobinostat by about a third) and 6 of the 15 rise above p = 0.05 (trametinib, erlotinib, motesanib, MLN8054, 17-AAG, JQ1), so the subgroup difference is partly but not only maturity.
+- **Sorafenib, sunitinib, quizartinib (Mer et al. 2021):**
+
+| Drug | n low / high | Median AUC low / high | Difference (high - low) | FDR | Wilcoxon p | FLT3-ITD-adjusted p |
+|---|---|---|---|---|---|---|
+| Sunitinib | 44 / 29 | 196 / 173 | -15 | 0.32 | 0.25 | 0.16 |
+| Sorafenib | 46 / 28 | 184 / 178 | -12 | 0.41 | 0.35 | 0.25 |
+| Quizartinib | 41 / 27 | 136 / 136 | 0 | 0.99 | 0.95 | 0.95 |
+| Ruxolitinib | 42 / 22 | 223 / 231 | +4 | 0.75 | 0.40 | 0.59 |
+
+  Sunitinib and sorafenib lean the way Mer et al. reported (primitive more sensitive), but weakly and nowhere near significant; quizartinib shows nothing. Mer et al. reported Wilcoxon p = 0.0004, 0.002 and 0.001 for these three in Beat AML. Possible reasons: they used the 2018 Beat AML release (77 NPM1-mutated samples in their analysis, chosen with their own filters), their own subtype calls from a classifier trained in another cohort (UHN), and their own AUC refit from the raw dose-response data. Our samples overlap theirs, so this isn't an independent replication either; it's a second look at largely the same patients with different choices, and the result doesn't hold up under ours.
+
+**Step 7, HOX program score** (mean VST of HOXA9, HOXA10, MEIS1, PBX3; blind VST of the 276 main-cohort samples). Median 12.0 in NPM1-mutated vs 9.5 in wild-type (correlation with NPM1 status 0.62).
+- `auc ~ NPM1_status + HOX_score` per drug, 123 drugs: **no drug at FDR < 0.05** (smallest FDR 0.15). Same with the monocyte-like score added, and with FLT3-ITD added.
+- The top of the list is all FLT3 / multi-kinase inhibitors: ponatinib, quizartinib, KW-2449, vandetanib, sorafenib, cabozantinib, dovitinib, sunitinib, each about 4 to 7 AUC lower per HOX unit. Biologically tempting, because FLT3 is a HOXA9/MEIS1 target gene. But it roughly halves once FLT3-ITD is in the model, and in wild-type samples FLT3-ITD cases have higher HOX scores (median 10.9 vs 9.1). So it's mostly FLT3-ITD showing through, not an independent HOX effect.
+
+**What I should understand**
+- *Lower AUC = more sensitive.* An AUC difference of -15 on a 0 to 300 scale is small; the venetoclax subgroup gap of -100 is large.
+- *Why the monocyte-like score is in the model.* Drug response depends a lot on how mature the cells are (venetoclax is the extreme example). NPM1-mutated and wild-type AML don't differ much on this score on average (Session 6), but individual samples vary a lot, so adjusting removes noise and makes comparisons fairer. Same caution as Session 6: maturity is partly a consequence of the biology, so adjusting for it can also remove real signal (the subgroup venetoclax gap is the clear case).
+- *FDR across drugs.* With 123 drugs, about 6 would pass p < 0.05 by chance alone. 22 did in step 2, but after correcting for testing 123 drugs none survives, so the step 2 evidence is "a general lean", not "a specific drug".
+- *Ex vivo is not the clinic.* Cells in a dish for 3 days lose the bone marrow environment, and single-drug AUC doesn't capture combinations (venetoclax is given with azacitidine). These data generate hypotheses about drug biology; they don't predict a patient's response.
+- *The subgroup story is the main result.* Within NPM1-mutated AML, the primitive-like group looks like a venetoclax-sensitive, BCL-2-dependent state, while the committed-like group looks monocytic, RAS-pathway driven, and sensitive to MEK and HDAC inhibitors. That's consistent with the mutation pattern (Session 5) and the cell-type scores (Session 6), and with what's known about venetoclax and monocytic AML. It's still one cohort and the split was found in these data.
+
+**Open questions**
+1. The 5 wild-type patients with drug data only on another specimen (4 at diagnosis within a day, 1 at remission) were left out. Worth adding the 4 diagnosis ones?
+2. Should the general "NPM1-mutated cells have lower AUC for most drugs" lean be handled, for example by comparing each drug against the sample's average AUC across all drugs?
+3. Replicate the venetoclax and MEK / panobinostat subgroup differences somewhere independent (for example the FIMM / Helsinki ex vivo data, or the Kuusanmäki et al. venetoclax screen).
+4. Does the venetoclax difference between the subgroups hold within FLT3-ITD-negative cases only, and within bone marrow vs blood?
+5. Menin: since no menin inhibitor is in the panel, use public menin-inhibitor response signatures (genes that fall after revumenib / VTP-50469) against our NPM1 and subgroup rankings, as listed in Session 4.
+
+**Deviations**
+- *Same-specimen matches only* (211), not "where possible" with a fallback to another specimen. The 5 patients with drug data only on another specimen are counted in `results/drug_specimen_matching.csv` but not used.
+- *One analysis set for steps 2 to 7*: the 206 samples with same-specimen drug data and a monocyte-like score, so models with and without the score use the same samples. Step 6 therefore has 80 NPM1-mutated samples (32 high, 48 low), not 83, and step 7 uses 206, not 211.
+- *Step 6 uses the same >= 20 per group rule* as step 2 (you only set it for step 2). It keeps 113 of 155 drugs, including all four of interest (sorafenib, sunitinib, quizartinib, ruxolitinib). Primary model is AUC on group only; FLT3-ITD-adjusted, monocyte-adjusted and Wilcoxon columns are extras, not used for the FDR. Ruxolitinib added to the close look because Mer et al. tested it.
+- *Step 7 extras*: HOX coefficients adjusted for the monocyte-like score and for FLT3-ITD (the second added after FLT3 inhibitors topped the list). The primary model is the one you asked for, `auc ~ NPM1_status + HOX_score`.
+- *Drug colours*: the family file lists several families for most drugs, so each drug gets one broad class by a fixed priority order (BCL-2, type III RTK, other RTKs, non-receptor tyrosine kinases, PI3K/AKT/mTOR, other kinases, non-kinase targets). Drugs not in the family file (49, including gilteritinib, cytarabine and azacytidine) are grey; I didn't classify them by hand. Full family lists per drug in `results/drug_family_classes.csv`.
+- *Venetoclax figure has a third panel* (venetoclax by NEK10/FTO/USP44 group within NPM1-mutated), because it's the largest effect in step 6.
+- *2 non-converged curve fits dropped.*
+- *`07_cell_composition.R` was rerun* (not asked) so its high-vs-low comparison uses the new split; only `results/celltype_score_tests.csv`, `celltype_score_coverage.csv` and `figures/07_celltype_scores.png` changed. `08_tcga_replication.R` wasn't rerun; it already reports the TCGA three-gene split as a check.
+- *`05_enrichment.R` rerun*: every GSEA table and the three-group figure came out identical; only the block outputs changed. `results/block_split_changes.csv` is new. The block figure keeps its file name (`05_block_nek10_fto_usp44_wdr86.png`) and still shows WDR86, now ordered by the three-gene score with the split marked.
+- *Extra outputs*: `results/drug_analysis_samples.csv`, `drug_venetoclax_by_npm1.csv`, `drug_menin_check.csv`, `figures/09_subgroup_kinase_inhibitors.png`. README gets a drug-response section, updated subgroup numbers, rows for scripts 07 to 09, and two references (Pei et al. 2020, Zhang et al. 2020). `scripts/run_all.R` now runs 09.
+- *The first draft of `09_drug_response.R` went into the step 0 commit by accident* (it was already in the folder when I committed step 0). The final version is in the session's last commit.
+- *`data/` re-downloaded* with `scripts/01_download.R` (new container); nothing in it is committed.

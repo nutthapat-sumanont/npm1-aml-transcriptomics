@@ -1,0 +1,6 @@
+"step","n","NPM1_mut","NPM1_wt"
+"Main cohort",276,100,176
+"Drug data on the same specimen as RNA-seq",211,83,128
+"No drug data on that specimen",65,17,48
+"  ...but drug data on another specimen of the same patient (not used)",5,0,5
+"Same specimen and a monocyte-like score (analysis set)",206,80,126

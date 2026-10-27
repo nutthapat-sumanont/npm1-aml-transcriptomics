@@ -1,8 +1,8 @@
 "variable","test","levels","p_score","p_split"
-"FLT3_ITD","Kruskal-Wallis (score); Fisher (high/low)","negative: n=59, median -0.60 | positive: n=41, median 0.08",0.0010514880760433,0.101672180761841
-"consensus_sex","Kruskal-Wallis (score); Fisher (high/low)","Female: n=64, median -0.42 | Male: n=36, median -0.31",0.902837197251841,1
-"specimen_type","Kruskal-Wallis (score); Fisher (high/low)","BM: n=67, median -0.53 | Blood: n=33, median -0.01",0.180954367895643,0.195647008900914
-"cohort","Kruskal-Wallis (score); Fisher (high/low)","Both: n=3, median -0.01 | Waves1+2: n=55, median -0.58 | Waves3+4: n=42, median 0.12",0.041426696855175,0.154084591540846
-"centerID","Kruskal-Wallis (score); Fisher (high/low)","1: n=55, median -0.42 | 2: n=11, median -0.63 | 3: n=11, median -0.47 | 4: n=4, median -0.53 | 5: n=15, median 0.21 | 6: n=1, median 0.26 | 7: n=2, median -0.64 | 8: n=1, median 0.93",0.803828562246638,0.603139686031397
-"ELN2017","Kruskal-Wallis (score); Fisher (high/low)","Adverse: n=2, median -0.28 | Favorable: n=70, median -0.57 | FavorableOrIntermediate: n=7, median -0.53 | Intermediate: n=21, median 0.59",0.0541175642371079,0.197880211978802
-"ageAtDiagnosis","Spearman correlation","rho = 0.13",0.209513803413506,0.0863538696946024
+"FLT3_ITD","Kruskal-Wallis (score); Fisher (high/low)","negative: n=59, median -0.59 | positive: n=41, median 0.17",0.0767949707483161,0.140896174672021
+"consensus_sex","Kruskal-Wallis (score); Fisher (high/low)","Female: n=64, median -0.50 | Male: n=36, median -0.45",0.762953486008971,0.521008078581476
+"specimen_type","Kruskal-Wallis (score); Fisher (high/low)","BM: n=67, median -0.49 | Blood: n=33, median -0.45",0.615567972923828,0.826379880341871
+"cohort","Kruskal-Wallis (score); Fisher (high/low)","Both: n=3, median -0.40 | Waves1+2: n=55, median -0.58 | Waves3+4: n=42, median 0.10",0.201707093656946,0.281771822817718
+"centerID","Kruskal-Wallis (score); Fisher (high/low)","1: n=55, median -0.48 | 2: n=11, median -0.59 | 3: n=11, median -0.63 | 4: n=4, median -0.57 | 5: n=15, median 0.10 | 6: n=1, median 0.54 | 7: n=2, median -0.82 | 8: n=1, median 0.89",0.862642704188274,0.808219178082192
+"ELN2017","Kruskal-Wallis (score); Fisher (high/low)","Adverse: n=2, median -0.50 | Favorable: n=70, median -0.58 | FavorableOrIntermediate: n=7, median -0.45 | Intermediate: n=21, median 0.23",0.620441335733029,0.511348865113489
+"ageAtDiagnosis","Spearman correlation","rho = 0.10",0.344725723767193,0.194730681161328
