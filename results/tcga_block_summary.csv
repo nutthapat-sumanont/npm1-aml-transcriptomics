@@ -1,0 +1,2 @@
+"cohort","n_NPM1_mut","rho_NEK10_FTO","rho_NEK10_USP44","rho_FTO_USP44","rho_WDR86_min","rho_WDR86_max","n_high","n_low","bimodality_block","bimodality_core","rho_primitive_vs_core","fisher_p_block_vs_pc_call"
+"TCGA-LAML",31,0.719758064516129,0.76491935483871,0.740725806451613,-0.120564516129032,0.0971774193548387,9,22,0.601654308767201,0.707146574972364,0.790322580645161,0.0166194322193742

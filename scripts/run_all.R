@@ -13,7 +13,8 @@ scripts <- c(
   "scripts/05_enrichment.R",        # GSEA, three-group plot, NEK10/FTO block
   "scripts/06_subgroup.R",          # block group vs published NPM1 subgroups
   "scripts/06b_deseq2_subgroups.R",  # sensitivity DESeq2 with NPM1-high/low
-  "scripts/07_cell_composition.R"    # cell-type scores, maturity sensitivity
+  "scripts/07_cell_composition.R",    # cell-type scores, maturity sensitivity
+  "scripts/08_tcga_replication.R"    # replication in TCGA-LAML (downloads ~650 MB)
 )
 
 if (!file.exists("CLAUDE.md")) stop("Run this from the repo root")

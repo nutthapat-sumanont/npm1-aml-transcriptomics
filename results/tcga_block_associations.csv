@@ -1,0 +1,6 @@
+"variable","test","levels","p_score","p_split"
+"FLT3_ITD","Kruskal-Wallis (score); Fisher (high/low)","negative: n=22, median -0.36 | positive: n=9, median -0.05",0.695298566782634,0.219985044698494
+"sex","Kruskal-Wallis (score); Fisher (high/low)","Female: n=16, median -0.02 | Male: n=15, median -0.52",0.0819903210003825,0.11338524286244
+"plate","Kruskal-Wallis (score); Fisher (high/low)","0734: n=11, median -0.05 | 0735: n=6, median -0.35 | 0736: n=7, median -0.36 | 0740: n=2, median 0.53 | 0748: n=3, median -0.03 | 0751: n=1, median 0.54 | 0760: n=1, median -0.77",0.607024687872,0.724427557244276
+"cyto_risk","Kruskal-Wallis (score); Fisher (high/low)","Intermediate/Normal: n=27, median -0.30 | Poor: n=2, median -0.43",0.438578026081002,1
+"age","Spearman correlation","rho = -0.31",0.0858505457440602,0.150031088674025

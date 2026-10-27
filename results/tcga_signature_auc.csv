@@ -1,0 +1,4 @@
+"score","genes","AUC","CI_low","CI_high","wilcox_p","note"
+"score",96,0.991935483870968,0.981309199514045,1,1.11022302462516e-15,"up minus down"
+"score_up",47,0.990322580645161,0.978844690388137,1,1.33226762955019e-15,"up genes only"
+"score_down",49,0.985887096774194,0.968713404755436,1,2.43240911291578e-15,"down genes only (sign flipped)"

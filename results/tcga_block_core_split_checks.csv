@@ -1,0 +1,12 @@
+"test","value","p"
+"primitive_score, Wilcoxon high vs low",2.01655397573244,1.0865416872091e-05
+"committed_score, Wilcoxon high vs low",-1.11652094557973,0.0595017391457881
+"primitive-like calls in core-high (value = count of high)",5,0.0590073626781079
+"FLT3_ITD: mutated in core-high (value) of 6; in core-low 9 of 25",0,0.144747725392887
+"DNMT3A: mutated in core-high (value) of 6; in core-low 14 of 25",1,0.171919416635768
+"TET2: mutated in core-high (value) of 6; in core-low 1 of 25",0,1
+"IDH1: mutated in core-high (value) of 6; in core-low 2 of 25",4,0.00631688173401188
+"IDH2: mutated in core-high (value) of 6; in core-low 1 of 25",2,0.0878754171301445
+"NRAS: mutated in core-high (value) of 6; in core-low 1 of 25",1,0.354838709677419
+"KRAS: mutated in core-high (value) of 6; in core-low 2 of 25",1,0.488320355951057
+"PTPN11: mutated in core-high (value) of 6; in core-low 4 of 25",0,0.561417447958049

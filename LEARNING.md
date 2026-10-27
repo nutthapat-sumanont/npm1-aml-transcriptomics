@@ -437,4 +437,131 @@ Three fits, all on the same 270 samples and the same 19,398 genes. Wave has two 
 - *Extra checks not asked for*: Glass's delta effect sizes (the measure Bottomly et al. used), score-vs-score correlations, score-vs-gene correlations and R squared (`results/celltype_score_gene_*.csv`), the AUC table (`results/celltype_score_predict_npm1.csv`), a fold-change slope, and the HOXB cluster in the controls table.
 - *Extra outputs*: `results/celltype_score_coverage.csv`, `celltype_score_tests.csv`, `celltype_score_correlations.csv`, `celltype_signature_overlap.csv`, `deseq2_celltype_adjusted.csv`, `deseq2_celltype_controls.csv`, `deseq2_celltype_summary.csv`, `sessionInfo_07_cell_composition.txt`, and a second figure, `figures/07_celltype_adjusted_lfc.png`.
 - *`scripts/run_all.R`* now includes 07. Still not test-run from a clean checkout.
+
+## Session 7 (2026-10-27): replication in TCGA-LAML (`scripts/08_tcga_replication.R`)
+
+(Session 6, the cell-type session, ran in parallel; this is Session 7.)
+
+**What we did, step by step**
+1. **Downloaded TCGA-LAML from the NCI Genomic Data Commons (GDC)** with plain calls to the GDC API (no TCGAbiolinks): 151 STAR gene-count files (GENCODE v36, GRCh38), the clinical patient table and 153 open "masked" mutation files (MAFs). Every file is checked against GDC's md5 checksum, the same idea as the Git LFS pointer check in `01_download.R`. Cached in `data/tcga/` (about 650 MB, gitignored).
+2. **Added two open tables from the TCGA paper (NEJM 2013) via cBioPortal**, because GDC alone wasn't enough: the curated cytogenetics and rearrangements (for KMT2A and APL), and the hand-reviewed mutation calls (for NPM1 and FLT3-ITD).
+3. **Built the cohort** with the Beat AML filters in the same order, then applied your decisions (table below).
+4. **Matched genes to Beat AML by Ensembl ID** with the version suffix removed.
+5. **PCA coloured by sequencing plate**, then **DESeq2** with `~ sex + NPM1_status`, apeglm shrinkage, and a FLT3-ITD sensitivity model. Compared with Beat AML, checked the positive controls and ran the two Verhaak gene sets.
+6. **Scored every TCGA sample** on the Beat AML top 50 up and top 50 down genes and measured the ROC AUC.
+7. **Three-group HOXA9 / MEIS1 plot.**
+8. **NEK10 / FTO / USP44 / WDR86 inside the NPM1-mutated samples**, with the same statistics as Session 4, plus the Mer et al. primitive / committed markers from Session 5.
+
+**Cohort**
+
+| Step | Filter | Patients | NPM1 mut / wt | % mutated |
+|---|---|---|---|---|
+| 0 | All TCGA-LAML patients | 200 | 53 / 147 | 26.5 |
+| 1 | RNA-seq counts on GDC | 151 | 37 / 114 | 24.5 |
+| 2, 3 | AML at sampling, initial diagnosis | 151 | 37 / 114 | 24.5 |
+| 4 | NPM1 known and confirmed | 148 | 35 / 113 | 23.6 |
+| 5 | One sample per patient | 148 | 35 / 113 | 23.6 |
+| 6 | De novo AML only | 134 | 32 / 102 | 23.9 |
+| 7 | Drop APL | 121 | 32 / 89 | 26.4 |
+| 8 | Drop KMT2A-rearranged | 112 | 32 / 80 | 28.6 |
+| 9 | QC: conflicting APL evidence (TCGA-AB-2869) | **111** | **31 / 80** | **27.9** |
+
+- Steps 2, 3 and 5 remove nobody: TCGA-LAML only has diagnostic AML samples, one RNA-seq sample per patient.
+- Step 4 (your rule): NPM1 comes from the paper's calls. Where they disagree with the clinical NPMc test, the patient stays only if GDC's MAF confirms the paper. Dropped: TCGA-AB-2812 and 2853 (paper only, not confirmed) and 2971 (clinical test only). Kept: 2871 (confirmed). 2869 and 2931 were also confirmed but leave later (2931 isn't de novo; 2869 is step 9). The patient with no clinical result stays.
+- **9 KMT2A-rearranged cases** kept for the three-group plot (`group = "KMT2A_r"` in `results/tcga_cohort.csv`); none carries an NPM1 mutation. Every excluded patient has a reason in the `exclusion_reason` column.
+- Recorded sex agrees with expression (XIST vs RPS4Y1) in all 151 patients.
+- 52% female in NPM1-mutated vs 44% in wild-type (Beat AML: 64% vs 41%). FLT3-ITD in 29% vs 14%.
+
+**Key numbers**
+- **Gene matching:** 18,693 of the 19,398 genes tested in Beat AML (96.4%) have a TCGA match; 98.2% of protein-coding ones; 992 of the 1,019 significant genes; all 20 key genes. Of the matched genes, 3,896 carry a different symbol in GENCODE v36 (renamed since 2014, e.g. DUSP27 is now STYXL2), which is why we match by ID.
+- **Plate check:** plate explains at most 6% of PC1 to PC4. NPM1 status explains 41% of PC1. Plates are mixed together in the plot, so plate stays out of the model.
+- **DESeq2 in TCGA:** 26,069 genes tested (>= 10 reads in >= 31 samples). 6,098 at padj < 0.05; **1,511 with padj < 0.05 and |log2FC| > 1 (379 up, 1,132 down)**. Top 10: BAALC-AS1, BAALC, TRH, TSPAN7 (down), ONECUT3 (up), LINC02174, CD200, SDK2, LRP6, BAALC-AS2 (down).
+- **Beat AML vs TCGA** (17,498 genes tested in both):
+
+| Measure | Value |
+|---|---|
+| Pearson r of shrunken log2FC, all shared genes | 0.74 |
+| Spearman rho of log2FC / of Wald statistic | 0.55 / 0.55 |
+| Pearson r of log2FC, Beat AML significant genes only | 0.84 |
+| Beat AML significant genes going the same way in TCGA | 95.4% (of 967) |
+| ... and padj < 0.05 in TCGA, same direction | 732 of 967 |
+| Significant in both (padj < 0.05 and abs(log2FC) > 1) | 562 same direction, 1 opposite (BEGAIN) |
+| Overlap odds ratio (Fisher) | 61, p < 1e-300 |
+| Beat AML top 50 (49 testable in TCGA): padj < 0.05 in TCGA, same direction | **48 of 49** |
+
+- **Positive controls all pass in TCGA**, with fold changes close to Beat AML's:
+
+| Gene | TCGA log2FC | TCGA padj | Beat AML log2FC |
+|---|---|---|---|
+| HOXA9 | +2.09 | 1.6e-05 | +1.60 |
+| HOXA10 | +1.90 | 3.1e-05 | +1.51 |
+| HOXB2 to HOXB9 | +1.75 to +5.22 | 4.3e-10 to 3.5e-07 | +1.35 to +3.10 |
+| MEIS1 | +1.46 | 8.7e-04 | +1.60 |
+| PBX3 | +2.25 | 3.2e-20 | +1.91 |
+| CD34 | -4.06 | 4.4e-24 | -4.00 |
+
+- **Verhaak gene sets in TCGA:** UP NES +3.79 (FDR 9e-57), DN NES -3.80 (FDR 2e-91). Beat AML was +3.31 and -3.76.
+- **FLT3-ITD sensitivity in TCGA:** 46 of the top 50 stay in the top 50, 49 of 50 stay significant, log2FC correlation 0.99 (Beat AML: 42 of 50, 0.98).
+- **Signature score:** 47 of the 50 up genes and 49 of the 50 down genes exist in TCGA. **ROC AUC 0.992 (95% CI 0.981 to 1.000)**; up genes alone 0.990, down genes alone 0.986. At the best cut-off (optimistic, chosen on the same data) 2 of 80 wild-type samples score high (TCGA-AB-2851, 2873, both FAB M5 with a normal karyotype) and 2 of 31 mutated samples score low.
+- **Three-group plot** (median VST):
+
+| | NPM1-mutated (n=31) | KMT2A-r (n=9) | Other AML (n=80) |
+|---|---|---|---|
+| HOXA9 | 11.3 | 11.3 | 8.6 |
+| MEIS1 | 12.2 | 11.8 | 9.9 |
+
+  NPM1-mutated and KMT2A-r are both about 2 to 2.8 units above other AML (Wilcoxon p from 4e-12 to 0.008), and don't differ from each other (p = 0.66 and 0.75). Same picture as Beat AML.
+
+- **NEK10 / FTO / USP44 inside NPM1-mutated (n = 31), next to Beat AML (n = 100):**
+
+| | TCGA | Beat AML (Sessions 4, 5) |
+|---|---|---|
+| Spearman, NEK10 / FTO / USP44 pairs | 0.72 to 0.76 (each p < 1e-5) | 0.79 to 0.83 |
+| Spearman, WDR86 with the other three | -0.12 to 0.10 | 0.28 to 0.32 |
+| Same pairs in wild-type | 0.15 to 0.52 | -0.30 to 0.27 |
+| k-means split, four-gene score (Session 4 method) | 9 high / 22 low (29%) | 39 / 61 (39%) |
+| k-means split, NEK10/FTO/USP44 only | 6 high / 25 low (19%) | not run |
+| Bimodality coefficient, four-gene / three-gene | 0.60 / 0.71 | 0.70 (four-gene) |
+| WDR86 vs FLT3-ITD | 7.7 vs 5.9, p = 0.08 (only 9 ITD+) | 8.6 vs 4.8, p = 1.6e-08 |
+| Core score vs FLT3-ITD | p = 0.88 | p = 0.08 |
+| Score vs sex, plate, cyto risk, age | all p > 0.08 | nothing clear |
+| Primitive score vs core score (Spearman) | 0.79 | 0.91 |
+| Primitive markers higher in high group | 6 of 6 (BH padj 1e-6 to 0.008) | 6 of 6 |
+| Committed markers lower in high group | 5 of 5 lower, 3 of 5 padj < 0.05 | 5 of 5 |
+| Block group vs primitive/committed call | 7 of 9 high are primitive-like, 16 of 22 low committed-like (Fisher p = 0.017) | 35 of 39 and 55 of 61 (p = 2e-16) |
+
+- **Co-mutations** (extra, the paper's calls; descriptive, tiny numbers): in the four-gene split, PTPN11 4 of 22 low vs 0 of 9 high and DNMT3A 55% vs 33%, the same lean as Beat AML. TET2 or IDH2 doesn't replicate on its own (2 of 9 vs 2 of 22). IDH1 does stand out (5 of 9 high vs 1 of 22 low, p = 0.004). **Post hoc**, TET2, IDH1 or IDH2 together: 7 of 9 high vs 3 of 22 low (p = 0.001), and **all 6 of the three-gene high group** vs 4 of 25 (p = 0.0003).
+
+**What I should understand**
+- **The main NPM1 signature replicates very well.** A different hospital, sequencing centre, genome build and gene annotation, roughly 40% as many samples, and still: every positive control passes, 95% of our significant genes go the same way, 48 of the top 49 testable genes are significant again, and a 96-gene score built only from Beat AML separates NPM1-mutated from wild-type with an AUC of 0.99. That's about as strong as replication gets for an expression signature.
+- *Why the correlation is 0.74 and not higher.* Most genes barely change in either cohort, so their fold changes are mostly noise, and noise doesn't correlate. Among the genes that really change (the Beat AML significant ones) it's 0.84. Spearman (0.55) is lower than Pearson because it gives the many near-zero genes the same weight as the big ones.
+- *Why TCGA finds more significant genes (1,511) with fewer samples.* The low-count rule is tied to the size of the smaller group (31 here vs 100), so TCGA tests more lowly expressed genes, and TCGA's single-centre, all-bone-marrow design is less noisy. Of the genes tested in both cohorts, 931 are significant in TCGA vs 967 in Beat AML.
+- *Why the ROC result needs one caveat.* The score genes were picked in Beat AML and tested in TCGA, so this is a fair out-of-cohort test; nothing about TCGA was used to choose them. NPM1 status itself is a strong, well-known expression signal, though, so AUC 0.99 says "our signature is the real NPM1 signature", not "we found something new".
+- **KMT2A-r sits in the middle on the signature score** (median about 0.8, vs 1.5 for NPM1-mutated and -0.6 for other AML). That fits Session 4: the HOX "up" half is shared by both menin-dependent groups, but the "down" half (CD34, BAALC, stem genes) is more specific to NPM1.
+- **The menin story replicates.** HOXA9 and MEIS1 are equally high in NPM1-mutated and KMT2A-r AML and lower in other AML, in both cohorts.
+- **The NEK10/FTO/USP44 module replicates, the exact split doesn't quite.** The three genes rise and fall together inside NPM1-mutated AML again (0.72 to 0.76), and the high samples are again primitive-like by the Mer et al. markers. Two differences:
+  1. **WDR86 doesn't belong in the score.** In TCGA it doesn't follow the other three at all, which pulls 3 samples with ordinary FTO into the four-gene "high" group. With only NEK10/FTO/USP44, the high group is 6 of 31 (19%) and the FTO jump in those 6 is very clean (VST about 13 to 14.5 vs 10 to 11.5). In Beat AML WDR86 was weakly linked (0.3) and turned out to be an FLT3-ITD gene, so dropping it from the definition is the cleaner choice going forward.
+  2. **The high group is smaller in TCGA** (19 to 29% vs 39%). Partly small numbers (31 samples, so one sample is 3 percentage points). It could also be cohort differences: TCGA's NPM1-mutated patients are younger (median age 53 vs 60 in Beat AML) and come from a single centre.
+- **The IDH/TET2 link is interesting but needs care.** In Beat AML, TET2 and IDH2 were higher in the high group and IDH1 wasn't; in TCGA it's mainly IDH1. Grouping all three as "the 2-HG / TET2 pathway" makes biological sense (mutant IDH1 and IDH2 make 2-hydroxyglutarate, which blocks TET2), and it fits the Arza-Apalategi paper's TET2/IDH2 link and DNA-methylation-driven IFEX9. But I picked that grouping after seeing the TCGA data, so it's a hypothesis to test properly (for example in Beat AML with all three genes), not a result.
+- **In TCGA wild-type samples, NEK10 and FTO are somewhat linked too** (0.52, vs about 0.2 in Beat AML). Possibly the same programme at a lower level in some non-NPM1 AML (for example IDH-mutant cases). Worth a look before saying the module is NPM1-specific.
+
+**Open questions**
+1. Should the NEK10/FTO/USP44 definition drop WDR86 everywhere (Beat AML too)? In Beat AML that would mean re-running the Session 4 k-means on the three-gene core score; it may move a few samples between groups and changes `06b_deseq2_subgroups.R`.
+2. Test "TET2, IDH1 or IDH2" in Beat AML with the same definition, now that it's a pre-stated hypothesis.
+3. The two wild-type samples with an NPM1-like score (TCGA-AB-2851, 2873; both FAB M5, normal karyotype): a missed NPM1 mutation, or NPM1-like AML without NPM1? TCGA-AB-2851 also had an MLL FISH reading of 2.5% of cells, which is background, so it isn't KMT2A-rearranged.
+4. Survival by subgroup is possible in TCGA (the paper's table has overall survival), but with 6 to 9 high cases it would be very underpowered.
+
+**Deviations**
+- *Session number:* the first commit of this session (steps 1 to 3) said "Session 6" in its message; that commit is already pushed and was left as is. The script and this entry say Session 7.
+- *GDC API instead of TCGAbiolinks.* Plain `httr` / `jsonlite` calls with md5 checks. Fewer packages, and every request is visible in the script.
+- *Data from cBioPortal as well as GDC.* GDC's own fusion calls are controlled access, its clinical table records KMT2A only partly, and its masked MAFs find only 10 of the ~37 NPM1 insertions among RNA-seq patients (the same problem as the Beat AML exome). The paper's curated tables on cBioPortal (study `laml_tcga_pub`) are the TCGA data, curated by the TCGA authors, and are open.
+- *FLT3-ITD definition:* from the paper's calls, an in-frame insertion or duplication starting at codons 570 to 615. FLT3 point mutations (D835 etc.) count as negative.
+- *De novo* = no earlier cancer (`history_other_malignancy`) and no earlier blood disorder (`history_hematologic_disorder`). Chemical exposures and hydroxyurea before sampling weren't used.
+- *KMT2A FISH cut-off of 20% of cells:* chosen by looking at the data (negatives 0 to 19%, positives 74 to 98%); no sample falls in between, so any cut-off from 20 to 70 gives the same result.
+- *Low-count rule:* >= 10 reads in >= 31 samples (the smaller group, like Beat AML's 100). The VST for steps 5 to 7 forces the score genes, block genes and Mer markers through even if they fail it (none of these genes actually needed it).
+- *Signature genes:* "top 50 up / down" = the 50 most significant genes (by |Wald statistic|) with a positive / negative statistic in Beat AML, kept if the Ensembl ID exists in TCGA (47 up, 49 down). I didn't swap in the next-ranked genes. Each gene is z-scored across the 111 main-cohort samples; the score is mean z (up) minus mean z (down).
+- *Positive controls* also include the two Verhaak gene sets (fgsea on the TCGA Wald statistic, after removing male-specific chrY genes and XIST, as decided in Session 3).
+- *Block split:* the main split repeats Session 4 exactly (k-means on the four-gene score). Because WDR86 doesn't follow the others in TCGA, I added the three-gene split as a check (`results/tcga_block_core_split_checks.csv`).
+- *Extra outputs not asked for:* co-mutation tables (`results/tcga_block_comutations.csv`, including the post hoc TET2/IDH1/IDH2 row), the per-sample signature scores, `results/tcga_pca_r2.csv`, `results/tcga_block_summary.csv`.
+- *Packages:* pROC (ROC curves and DeLong confidence intervals) installed from r2u; pROC, patchwork and httr added to `setup/cloud_setup.sh`. `scripts/run_all.R` now runs 08 after 06b (07 is left for the Session 6 script).
 - *`data/` re-downloaded* with `scripts/01_download.R` (new container); nothing in it is committed.
