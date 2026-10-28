@@ -13,6 +13,8 @@
 # 60% of it in 08 and 11, which download TCGA-LAML data (GDC, recount3).
 # Session 13 added 13_classifier.R. It runs before 12, out of number order,
 # because 12 copies its ROC figure into docs/figures/.
+# Session 14 added 14_paper_figures.R (paper figures and supplementary
+# workbook from results/ only), last because it reads what 04 to 13 wrote.
 
 scripts <- c(
   "scripts/01_download.R",           # Beat AML 2.0 files into data/
@@ -28,7 +30,8 @@ scripts <- c(
   "scripts/10_survival.R",           # exploratory overall survival (Beat AML, TCGA)
   "scripts/11_fto_locus.R",          # FTO vs IFEX9 in TCGA coverage (recount3)
   "scripts/13_classifier.R",         # LASSO NPM1 classifier, nested CV, locked test in TCGA
-  "scripts/12_build_site.R"          # data files for the web page in docs/ (last: copies 13's figure)
+  "scripts/12_build_site.R",         # data files for the web page in docs/ (copies 13's figure)
+  "scripts/14_paper_figures.R"       # paper figures (figures/paper/) and supplementary tables (results/paper/)
 )
 
 if (!file.exists("CLAUDE.md")) stop("Run this from the repo root")

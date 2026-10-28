@@ -1,6 +1,6 @@
 # Session 14: proposed figure layout for a short paper
 
-Status: **proposal, waiting for approval.** Nothing is built yet.
+Status: **approved and built in Session 14** (`scripts/14_paper_figures.R`). The answers to the questions below, and every change made while building, are in the Session 14 entry of LEARNING.md.
 
 Rules for the build (from the Session 14 prompt):
 - Every panel is drawn from tables already in `results/`. No new analysis, no refits, no change to any existing file in `results/` or `figures/`.
