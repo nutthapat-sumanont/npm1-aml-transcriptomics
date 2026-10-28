@@ -19,6 +19,7 @@ Each session has one number, used in this log, CLAUDE.md and the script headers.
 | 11 | 2026-10-27 | Project web page (GitHub Pages) | `12_build_site.R` | #10 |
 | 12 | 2026-10-27 | Final session: README results, clean run, renv, TCGA in the gene lookup | `run_all.R`, `12_build_site.R`, `setup/renv_snapshot.R` | #11 |
 | 13 | 2026-10-28 | Optional: NPM1 classifier (LASSO, nested CV, locked test in TCGA) | `13_classifier.R` | #12 |
+| 14 | 2026-10-28 | Optional: paper figures and supplementary tables | `14_paper_figures.R` | #13 |
 
 Three early commit messages carry the wrong number. They were already pushed, so they were left as they are rather than rewriting history:
 - `bb97e57` says "Session 6" but belongs to Session 7 (TCGA).
@@ -1241,3 +1242,59 @@ Done in a fresh clone of this branch with no `data/`, and with every generated f
 
 **Number check (2026-10-28, found by Session 14)**
 - Three numbers in the write-ups didn't match the committed tables, all rounding-level: the primitive score vs NEK10/FTO/USP44 score Spearman is 0.905 (`results/subgroup_primitive_committed_scores.csv`), so 0.90, not 0.91 (the Session 8 entry above says "0.91 (unchanged)"; left as written, as a log); the median FTO exon 1-8 coverage in the 6 FTO-high TCGA samples is 12.8 (`results/fto_locus_per_sample.csv`), not 12.9 (Session 10 table); and `docs/results.html` still said "About 40% (37 of 100)" from the old 39 / 61 split. README, `docs/results.html` and the Results at a glance table now use 0.90, 12.8 and "more than a third". No analysis changed.
+
+## Session 14 (2026-10-28, optional): figures and tables for a short paper (`scripts/14_paper_figures.R`)
+
+**Headline.** Four multi-panel figures (PDF and 300 dpi PNG in `figures/paper/`), one supplementary workbook (`results/paper/supplementary_tables.xlsx`) and draft figure legends (`results/paper/figure_legends.md`), all built from tables already in `results/`. No new analysis, and no file in `results/` or `figures/` outside the two new `paper/` folders changed.
+
+**What we did, step by step**
+1. **Proposed a layout** (`results/paper/figure_plan.md`, committed and pushed before building) and stopped for approval. Your answers: subgroups in dark and light orange (light points get a thin darker outline); Figure 2D solid thin lines for Beat AML CV (one per repeat), thick dashed for TCGA, black = LASSO, grey = HOXA9 + CD34, AUC in the legend and a zoom inset; the PCA shows all 277 samples with BA2294R marked; keep the volcano; add the full TCGA DESeq2 table as a sheet; reword the Figure 4 point (below).
+2. **Wrote `scripts/14_paper_figures.R`.** One style everywhere: Liberation Sans (Arial metrics), 7 to 8 pt text, bold panel letters A, B, C..., 180 mm wide, the project colours (NPM1-mutated `#D55E00`, KMT2A-rearranged `#0072B2`, other AML / wild-type grey, up / down genes orange / blue). It reads only `results/` (no `data/` download) and runs in about 0.4 minutes.
+3. **Built in checks.** Every number printed on a figure is compared with LEARNING.md, and the script stops if one doesn't match. Curves redrawn from saved values (ROC curves from the saved CV and TCGA predictions, Kaplan-Meier curves and Cox HRs from `results/survival_beataml.csv`, the correlations in Figure 2) are recomputed and must equal the saved tables to within 1e-8. They all did. The checks found four places where LEARNING.md had rounded a number differently from the committed table (see Deviations).
+4. **Wrote the workbook.** A README sheet (what each sheet is, its source file, session, size; then what every column means, 270 descriptions) and 29 sheets, one per source table, numbered S1 to S12 in the groups of the plan. The script stops if a column has no description. Cells are only *displayed* rounded (0.000, or 0.00E+00 for p-values); the stored values are the CSV values. Read back, 5 sheets (including the two largest, the Beat AML and TCGA DESeq2 tables) are identical to their CSVs.
+5. **Drafted the legends** with numbers from this log only.
+6. **Reproducibility.** `scripts/run_all.R` now runs 14 last; openxlsx added to `setup/cloud_setup.sh` and `setup/renv_snapshot.R`; `renv.lock` now lists 133 packages (openxlsx 4.2.9 and its dependency zip added; no other version changed).
+
+**The four figures (final points)**
+
+| Figure | Panels | Point |
+|---|---|---|
+| 1 | PCA (277), volcano, gene-set NES bars, HOXA9 / MEIS1 in three groups | NPM1 status is the largest structured signal; its HOX-centred signature (HOX/MEIS1/PBX3 up, CD34 down) reproduces the Verhaak signature and is shared with KMT2A-rearranged AML |
+| 2 | Cell-maturity sensitivity, Beat AML vs TCGA fold changes, TCGA signature score, classifier ROC | Adjusting for cell maturity barely changes the signal, and both the fold changes and a locked Beat AML classifier carry over to TCGA-LAML |
+| 3 | Heat strip with mutation tracks, primitive score vs core score, shared vs subgroup-specific genes, FTO locus per patient in TCGA | A primitive-like subgroup (37 of 100) switches on NEK10, USP44 and IFEX9 on top of the shared HOX programme, with a different co-mutation pattern; it matches the Mer et al. primitive and Arza-Apalategi et al. IFEX9-high groups |
+| 4 | Drug volcano, subgroup drug forest plot, survival by NPM1 x FLT3-ITD, survival high vs low | NPM1 status alone barely changes ex vivo drug response; for survival, the benefit sits in NPM1-mutated patients without FLT3-ITD (HR 0.41, 0.25 to 0.67), while NPM1 alone is borderline (HR 0.70, p = 0.06) |
+
+**Key numbers**
+- 4 figures, 16 panels; `figures/paper/` 4.2 MB. The workbook is 5.7 MB (29 tables plus README).
+- Rerunning the script gives byte-for-byte identical PNGs. The PDFs and the workbook carry a creation time, so they differ on every run while their content stays the same.
+- Corrected number: **primitive score vs core score Spearman 0.90** (0.9048 in `results/subgroup_primitive_committed_scores.csv`), not 0.91.
+
+**What I should understand**
+- *Why the figures are drawn from `results/`, not `data/`.* Anyone can rebuild them in under a minute without downloading 1 GB of raw data, and the checks tie each figure to the reported numbers. The price: a few plots in earlier sessions were drawn straight from raw data (the FTO coverage track, the per-sample venetoclax scatter, the GSEA running-score curves) and can't be redrawn this way, so those panels show the same result in another form.
+- *Rounding once.* 0.9048 rounds to 0.90. Rounding to three places first (0.905) and then to two (0.91) moves it. Always round from the full-precision value, and only once. The automatic checks are what caught it.
+- *Labels by name, not by position.* Two bugs during the build came from the same mistake: a legend or table label list matched to groups by position, not by name. The Figure 4C numbers-at-risk rows were labelled in the wrong order, and the Figure 3C legend called the "mostly high" colour "shared". The data were right, only the labels were wrong, which is the dangerous kind of bug because the figure still looks plausible. Both are fixed by naming every label vector.
+- *Display format vs value in Excel.* A cell can show 0.000 while holding 0.000123456. The workbook keeps full precision so anyone can recompute from it.
+- *Colour as meaning.* Orange always means NPM1-mutated (dark orange = primitive-like, light orange = committed-like), blue KMT2A-rearranged, grey wild-type / other AML. That's why the drug classes (which used orange and blue in Session 8) and the four survival groups (blue for NPM1-mut / ITD-pos in Session 9) were redrawn: in 4C, colour is NPM1 and line type is FLT3-ITD.
+
+**Open questions**
+1. The legends are drafts. Word limits depend on the journal; the "What I should understand" parts of the legends (for example why MEIS1 is partly circular) could move to the main text.
+2. ~~The 0.91, the 12.9 and "About 40% (37 of 100)" in README.md and `docs/results.html`.~~ Fixed on main in `b959209` (0.90, 12.8, "more than a third", also in the Results at a glance table; see the Number check note under Session 13) and merged into this branch before the pull request was merged. The Session 10 exon 9 median (87, table 87.6) wasn't changed; it isn't used anywhere outside that entry.
+3. If a reviewer wants the FTO coverage track or the venetoclax scatter, they'd need `data/` (or 09 changed to save per-sample AUCs, which is a change to analysis code).
+4. The summary, background and interpretation paragraphs of the paper itself are still yours to write.
+
+**Deviations**
+- *Numbers in this log that don't match the committed tables* (found by the checks; no result changed, earlier entries left as they were):
+  - Primitive score vs core score: Sessions 5 and 8 say Spearman 0.91, the table says 0.9048. The figure and legend say 0.90. (README, `docs/results.html` and the Results at a glance table were corrected on main in `b959209`, merged into this branch.)
+  - FTO-high medians in Session 10: exons 1-8 are 12.82 (log says 12.9), exon 9 87.6 (log says 87). Neither is printed on Figure 3D, and the legend doesn't quote them.
+  - TET2 in the low group is 7 of 61 = 11.5%, written 11% in Session 8; `sprintf` rounds it to 12%. The Figure 3A track labels show counts (12/36 vs 7/61) instead of %, so the figure and the legend (33% vs 11%) can't disagree.
+- *Supplementary sheets: one per source table* (S4a, S4b, ...) rather than several tables stacked in one sheet, so each column name has one meaning in the README. The numbering follows the plan's groups.
+- *Figure 3B* plots the primitive score against the core score (the plan said primitive vs committed score), so the panel shows the reported Spearman; the Mer et al. call is the point shape.
+- *Figure 1A* axis titles give PC1 19.7% and PC2 13.0% from this log, because the % variance was never saved in `results/`.
+- *Figure 4A* points aren't coloured by drug class (Session 8's palette used the NPM1 orange and KMT2A blue); the classes are in sheet S10a. *Figure 4C* uses colour for NPM1 and line type for FLT3-ITD. *Figure 4D*'s light orange curve gets a thin darker outline like the points.
+- *Figure 1C* shows NES bars (the running-score curves need `data/`), and the GO terms are the top 5 main collapsed terms each way by NES, a rule fixed in the plan before plotting.
+- *Plain-text axis titles* ("-log10 FDR") instead of plotmath, because plotmath draws the minus sign from the symbol font, which embedded a second font (Inter) in the PDFs. All four PDFs now use Liberation Sans only.
+- *Setup in this container:* `cloud_setup.sh` hadn't run (survival, pROC, renv missing), so it was run first; BiocManager and BiocVersion were installed from r2u so renv could write the lockfile, as in Sessions 12 and 13. The repo was cloned fresh; `data/` wasn't needed.
+- *`run_all.R --from 14`* was used to test the new entry; it rewrote `results/run_all_timings.csv`, which was restored from git so the file keeps the Session 12 clean-run record.
+- *`results/paper/figure_plan.md`* is kept as the approved plan with a status line; the changes from it are the ones listed here.
+- *Extra output:* `results/sessionInfo_14_paper_figures.txt`, and one line in the CLAUDE.md decisions list (not asked; earlier sessions did the same) with the paper colours and the 0.90 correction. This session's own commits don't touch README or `docs/`; the README and `docs/results.html` changes in the branch come from merging main (`b959209`).
+- *Merged main into the branch* (`git pull origin main`) before the pull request was merged. The only conflict was at the end of LEARNING.md, where main added the Number check note under Session 13 and this branch added the Session 14 entry; both kept, Number check first.
