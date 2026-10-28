@@ -18,7 +18,7 @@ Each session has one number, used in this log, CLAUDE.md and the script headers.
 | 10 | 2026-10-27 | FTO vs IFEX9 (TCGA coverage) | `11_fto_locus.R` | #9 |
 | 11 | 2026-10-27 | Project web page (GitHub Pages) | `12_build_site.R` | #10 |
 | 12 | 2026-10-27 | Final session: README results, clean run, renv, TCGA in the gene lookup | `run_all.R`, `12_build_site.R`, `setup/renv_snapshot.R` | #11 |
-| 13 | 2026-10-28 | Optional: NPM1 classifier (LASSO, nested CV, locked test in TCGA) | `13_classifier.R` | PR_PLACEHOLDER |
+| 13 | 2026-10-28 | Optional: NPM1 classifier (LASSO, nested CV, locked test in TCGA) | `13_classifier.R` | #12 |
 
 Three early commit messages carry the wrong number. They were already pushed, so they were left as they are rather than rewriting history:
 - `bb97e57` says "Session 6" but belongs to Session 7 (TCGA).
