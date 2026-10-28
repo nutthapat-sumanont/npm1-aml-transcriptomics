@@ -37,6 +37,7 @@
         <li><a href="#fto">FTO, or a transcript inside FTO?</a></li>
         <li><a href="#drugs">Ex vivo drug response</a></li>
         <li><a href="#survival">Survival (exploratory)</a></li>
+        <li><a href="#classifier">Predicting NPM1 status from a small gene panel</a></li>
       </ol>
     </nav>
 
@@ -121,6 +122,16 @@
              alt="Kaplan-Meier curves. Left, NPM1-mutated vs wild-type, close together. Right, four NPM1 by FLT3-ITD groups; NPM1-mutated without FLT3-ITD does best, NPM1-mutated with FLT3-ITD worst.">
       </a>
       <figcaption><b>Overall survival, Beat AML main cohort.</b> Left: NPM1-mutated vs wild-type, adjusted for age, HR 0.70 (95% CI 0.49 to 1.01). Right: NPM1 x FLT3-ITD. The benefit sits in NPM1-mutated AML <b>without</b> FLT3-ITD (the ELN 2022 favorable group): HR 0.41 (0.25 to 0.67) against everyone else, 3-year survival 63%. NPM1-mutated with FLT3-ITD did no better than the wild-type baseline (3-year survival 30%). Taking the other favorable-risk AML (CBF, CEBPA) out of the comparison group barely moves the HR (0.38). This matches the clinic, which is a good sign the survival data and group labels make sense.</figcaption>
+    </figure>
+
+    <h2 id="classifier">9. Predicting NPM1 status from a small gene panel</h2>
+    <p>Can a few genes tell NPM1-mutated from wild-type AML, and does that hold in a cohort the model has never seen? A LASSO logistic regression on Beat AML expression keeps <b>33 genes</b>. Its performance was measured with nested cross-validation in Beat AML, then the model was locked and tested once in TCGA-LAML. The simplest possible model, HOXA9 + CD34, went through the same steps.</p>
+    <figure>
+      <a class="zoom" href="figures/13_classifier_roc.png" title="Open full size">
+        <img src="figures/13_classifier_roc.png" width="3000" height="1800" loading="lazy"
+             alt="ROC curves. All four curves hug the top-left corner. The 33-gene LASSO model reaches AUC 0.985 in Beat AML cross-validation and 0.996 in TCGA-LAML; HOXA9 plus CD34 reaches 0.950 and 0.966. Panel B zooms into the corner, where the dashed HOXA9 plus CD34 curves sit visibly below the solid LASSO curves.">
+      </a>
+      <figcaption><b>Blue, Beat AML (n = 276):</b> nested cross-validation, one thin line per repeat (10 repeats of 5-fold CV); every prediction comes from a model that never saw that patient, and the penalty was chosen inside each training set. The LASSO model scores <b>AUC 0.985</b> (range over repeats 0.984 to 0.987) and HOXA9 + CD34 alone 0.950. On its own training data the 33-gene model scores 0.9998: that gap is overfitting, and it's why only the cross-validated number counts. <b>Orange, TCGA-LAML (n = 111, 31 NPM1-mutated):</b> both models locked in Beat AML and tested once, after TCGA counts went through Beat AML's VST and each gene was rescaled to Beat AML's mean and SD. The LASSO model holds up: <b>AUC 0.996 (95% CI 0.989 to 1.000)</b>, 108 of 111 patients called correctly; two of its three errors are the two wild-type TCGA patients that already scored NPM1-like on the Beat AML signature score in the replication analysis. HOXA9 + CD34: 0.966 (0.934 to 0.997), 103 of 111 (paired DeLong p = 0.046). The largest LASSO weights are HOXB-AS3, NPTX1, WNT7B, MIR503HG, HIPK2 and BAALC; five genes already give a cross-validated AUC of 0.976. NPM1 has one of the strongest expression signatures in AML, so this shows the signal is easy to read and travels between cohorts; it isn't a substitute for the DNA test. B zooms into the top-left corner.</figcaption>
     </figure>
 
     <p class="small">Every number on this page comes from the project log, <a href="https://github.com/nutthapat-sumanont/npm1-aml-transcriptomics/blob/main/LEARNING.md">LEARNING.md</a>, where each analysis, decision and deviation is written up session by session. The tables behind the figures are in <a href="https://github.com/nutthapat-sumanont/npm1-aml-transcriptomics/tree/main/results">results/</a>.</p>

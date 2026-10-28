@@ -195,7 +195,8 @@ site_figs <- c(
   "05_three_group_hoxa9_meis1.png", "04_volcano.png", "05_gsea_verhaak_up.png",
   "08_tcga_lfc_vs_beataml.png", "07_celltype_adjusted_lfc.png",
   "05_block_nek10_fto_usp44_wdr86.png", "06_subgroup_shared_vs_specific.png",
-  "11_fto_coverage.png", "09_venetoclax.png", "10_km_npm1_flt3.png"
+  "11_fto_coverage.png", "09_venetoclax.png", "10_km_npm1_flt3.png",
+  "13_classifier_roc.png"   # Session 13; made by 13_classifier.R, which run_all.R runs before 12
 )
 dir.create("docs/figures", showWarnings = FALSE)
 old_figs <- setdiff(list.files("docs/figures"), site_figs)

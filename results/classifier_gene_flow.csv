@@ -1,0 +1,5 @@
+"step","genes"
+"All Beat AML genes",63677
+"Pass the low-count rule (04_deseq2.R)",19398
+"  ... and have an Ensembl match in TCGA",18693
+"  ... and are not chrY (male-specific) or XIST",18668
