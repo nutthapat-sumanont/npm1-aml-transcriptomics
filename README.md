@@ -121,7 +121,7 @@ More than a third of NPM1-mutated samples (37 of 100) have high NEK10, FTO and U
 
 ![Primitive and committed scores by group](figures/06_subgroup_primitive_committed.png)
 
-Primitive score (mean z-score of CDH2, GPR12, MDFI, ZNF521, PLXNB1, HHIP) and committed score (CD163, C1QA, CD14, MARCO, MSR1), the marker genes of Mer et al. (2021), in the NEK10/FTO/USP44-low (n = 63) and -high (n = 37) groups. The high group is primitive-like (Wilcoxon p = 2e-16) and the low group committed-like (p = 9e-7). The primitive score correlates with the NEK10/FTO/USP44 score at 0.91, and 32 of 37 high samples look primitive. The markers come from a different cohort and were picked by a different group, which is why the match is meaningful, though both scores are measured on the same RNA-seq data.
+Primitive score (mean z-score of CDH2, GPR12, MDFI, ZNF521, PLXNB1, HHIP) and committed score (CD163, C1QA, CD14, MARCO, MSR1), the marker genes of Mer et al. (2021), in the NEK10/FTO/USP44-low (n = 63) and -high (n = 37) groups. The high group is primitive-like (Wilcoxon p = 2e-16) and the low group committed-like (p = 9e-7). The primitive score correlates with the NEK10/FTO/USP44 score at 0.90 (Spearman), and 32 of 37 high samples look primitive. The markers come from a different cohort and were picked by a different group, which is why the match is meaningful, though both scores are measured on the same RNA-seq data.
 
 ![Shared vs subgroup-specific genes](figures/06_subgroup_shared_vs_specific.png)
 

@@ -43,7 +43,7 @@ One row per finding, with the number to remember and the figure that shows it (a
 | 4 | Every significant Hallmark set is down | 23 of 49 at FDR < 0.05, all down | `05_gsea_dotplot_hallmark.png` |
 | 4 | NPM1-mutated and KMT2A-rearranged AML share high HOXA9 and MEIS1 | Median HOXA9 12.2 vs 12.3 (p = 0.42), about 2.7 above other AML | `05_three_group_hoxa9_meis1.png` |
 | 4, 8 | A NEK10/FTO/USP44-high group inside NPM1-mutated AML | 37 high, 63 low (three-gene k-means); bimodality coefficient 0.73 | `05_block_nek10_fto_usp44_wdr86.png` |
-| 5, 8 | The high group is the Mer et al. "primitive" subtype | 32 of 37 high primitive-like, 54 of 63 low committed-like; primitive score vs core score Spearman 0.91 | `06_subgroup_primitive_committed.png` |
+| 5, 8 | The high group is the Mer et al. "primitive" subtype | 32 of 37 high primitive-like, 54 of 63 low committed-like; primitive score vs core score Spearman 0.90 | `06_subgroup_primitive_committed.png` |
 | 5, 8 | Co-mutations: TET2 and IDH2 in the high group, RAS pathway and DNMT3A in the low group | TET2 33% vs 11%, IDH2 39% vs 13%; NRAS and PTPN11 0% vs 20% and 25% | none (`results/subgroup_comutations.csv`) |
 | 5, 8 | The HOX program is shared by both subgroups; NEK10, FTO, USP44 rise only in the high group | Of 1,019 genes: 521 shared, 381 mostly high, 117 mostly low | `06_subgroup_shared_vs_specific.png` |
 | 6 | NPM1-mutated AML is less HSC-like and cDC-like, more promonocyte-like | Glass's d: HSC-like -0.75, cDC-like -0.87, Promono-like +0.54 | `07_celltype_scores.png` |
@@ -1240,6 +1240,9 @@ Done in a fresh clone of this branch with no `data/`, and with every generated f
 **Review (after the session, before merge): choices approved**
 - All five choices listed in Deviations are approved as they stand: the candidate-gene filter (low-count rule, an Ensembl match in TCGA, no male-specific chrY genes or XIST), lambda.1se, 10 x 5-fold outer with 10-fold inner CV, a 0.5 cut-off, and the per-gene TCGA rescaling. None of them used NPM1 labels outside the training folds, the locked model file is byte for byte the one committed in `35d98a2` before TCGA was read (a later commit only added an `entry_order` column to `classifier_final_model.csv`; every coefficient is unchanged), and the main result doesn't depend on the rescaling (VST only: AUC 0.994, the same 108 of 111 calls). Rescaling matches TCGA's mean and SD to Beat AML's, so it also absorbs part of the real difference in NPM1 share (28% vs 36%); that's why the VST-only row stays in the table. No rerun needed.
 
+**Number check (2026-10-28, found by Session 14)**
+- Three numbers in the write-ups didn't match the committed tables, all rounding-level: the primitive score vs NEK10/FTO/USP44 score Spearman is 0.905 (`results/subgroup_primitive_committed_scores.csv`), so 0.90, not 0.91 (the Session 8 entry above says "0.91 (unchanged)"; left as written, as a log); the median FTO exon 1-8 coverage in the 6 FTO-high TCGA samples is 12.8 (`results/fto_locus_per_sample.csv`), not 12.9 (Session 10 table); and `docs/results.html` still said "About 40% (37 of 100)" from the old 39 / 61 split. README, `docs/results.html` and the Results at a glance table now use 0.90, 12.8 and "more than a third". No analysis changed.
+
 ## Session 14 (2026-10-28, optional): figures and tables for a short paper (`scripts/14_paper_figures.R`)
 
 **Headline.** Four multi-panel figures (PDF and 300 dpi PNG in `figures/paper/`), one supplementary workbook (`results/paper/supplementary_tables.xlsx`) and draft figure legends (`results/paper/figure_legends.md`), all built from tables already in `results/`. No new analysis, and no file in `results/` or `figures/` outside the two new `paper/` folders changed.
@@ -1275,13 +1278,13 @@ Done in a fresh clone of this branch with no `data/`, and with every generated f
 
 **Open questions**
 1. The legends are drafts. Word limits depend on the journal; the "What I should understand" parts of the legends (for example why MEIS1 is partly circular) could move to the main text.
-2. The 0.91 also appears in README.md (Results, line 124) and `docs/results.html` (line 82), and the FTO-high median 12.9 in `docs/results.html` (line 104). Should those be corrected to 0.90 and 12.8? `docs/results.html` line 82 also still says "About 40% (37 of 100)", which Session 12 fixed in the README but not on the page.
+2. ~~The 0.91, the 12.9 and "About 40% (37 of 100)" in README.md and `docs/results.html`.~~ Fixed on main in `b959209` (0.90, 12.8, "more than a third", also in the Results at a glance table; see the Number check note under Session 13) and merged into this branch before the pull request was merged. The Session 10 exon 9 median (87, table 87.6) wasn't changed; it isn't used anywhere outside that entry.
 3. If a reviewer wants the FTO coverage track or the venetoclax scatter, they'd need `data/` (or 09 changed to save per-sample AUCs, which is a change to analysis code).
 4. The summary, background and interpretation paragraphs of the paper itself are still yours to write.
 
 **Deviations**
 - *Numbers in this log that don't match the committed tables* (found by the checks; no result changed, earlier entries left as they were):
-  - Primitive score vs core score: Sessions 5 and 8 say Spearman 0.91, the table says 0.9048. The figure and legend say 0.90.
+  - Primitive score vs core score: Sessions 5 and 8 say Spearman 0.91, the table says 0.9048. The figure and legend say 0.90. (README, `docs/results.html` and the Results at a glance table were corrected on main in `b959209`, merged into this branch.)
   - FTO-high medians in Session 10: exons 1-8 are 12.82 (log says 12.9), exon 9 87.6 (log says 87). Neither is printed on Figure 3D, and the legend doesn't quote them.
   - TET2 in the low group is 7 of 61 = 11.5%, written 11% in Session 8; `sprintf` rounds it to 12%. The Figure 3A track labels show counts (12/36 vs 7/61) instead of %, so the figure and the legend (33% vs 11%) can't disagree.
 - *Supplementary sheets: one per source table* (S4a, S4b, ...) rather than several tables stacked in one sheet, so each column name has one meaning in the README. The numbering follows the plan's groups.
@@ -1293,4 +1296,5 @@ Done in a fresh clone of this branch with no `data/`, and with every generated f
 - *Setup in this container:* `cloud_setup.sh` hadn't run (survival, pROC, renv missing), so it was run first; BiocManager and BiocVersion were installed from r2u so renv could write the lockfile, as in Sessions 12 and 13. The repo was cloned fresh; `data/` wasn't needed.
 - *`run_all.R --from 14`* was used to test the new entry; it rewrote `results/run_all_timings.csv`, which was restored from git so the file keeps the Session 12 clean-run record.
 - *`results/paper/figure_plan.md`* is kept as the approved plan with a status line; the changes from it are the ones listed here.
-- *Extra output:* `results/sessionInfo_14_paper_figures.txt`, and one line in the CLAUDE.md decisions list (not asked; earlier sessions did the same) with the paper colours and the 0.90 correction. README and `docs/` weren't touched.
+- *Extra output:* `results/sessionInfo_14_paper_figures.txt`, and one line in the CLAUDE.md decisions list (not asked; earlier sessions did the same) with the paper colours and the 0.90 correction. This session's own commits don't touch README or `docs/`; the README and `docs/results.html` changes in the branch come from merging main (`b959209`).
+- *Merged main into the branch* (`git pull origin main`) before the pull request was merged. The only conflict was at the end of LEARNING.md, where main added the Number check note under Session 13 and this branch added the Session 14 entry; both kept, Number check first.
