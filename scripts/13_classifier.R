@@ -24,7 +24,7 @@
 #     was looked at; "no rescaling" is reported next to it to show why it's needed.
 #  5. Figure: cross-validated ROC in Beat AML and locked-model ROC in TCGA.
 #
-# Run from the repo root:  Rscript scripts/13_classifier.R   (about 5 minutes)
+# Run from the repo root:  Rscript scripts/13_classifier.R   (about 4 minutes)
 # Needs data/ from 01_download.R (Beat AML counts), data/tcga/ from
 # 08_tcga_replication.R (TCGA counts), results/cohort.csv (02),
 # results/tcga_cohort.csv (08) and results/chrY_genes_grch37.csv (05).
@@ -36,6 +36,7 @@ suppressPackageStartupMessages({
   library(data.table)
   library(dplyr)
   library(ggplot2)
+  library(patchwork)
 })
 
 set.seed(2026)
@@ -202,9 +203,18 @@ cv_summary <- data.frame(
   genes_median = c(median(fits$n_genes_1se), median(fits$n_genes_min), 2),
   genes_min = c(min(fits$n_genes_1se), min(fits$n_genes_min), 2),
   genes_max = c(max(fits$n_genes_1se), max(fits$n_genes_min), 2))
+# Calls at probability 0.5, averaged over the 10 repeats (same threshold as TCGA)
+calls <- function(col) {
+  oof %>% mutate(call = .data[[col]] >= 0.5) %>% group_by(repeat_id) %>%
+    summarise(sens = mean(call[y == 1]), spec = mean(!call[y == 0]),
+              acc = mean(call == (y == 1)), .groups = "drop") %>%
+    summarise(across(c(sens, spec, acc), mean))
+}
+cv_summary <- cbind(cv_summary, bind_rows(calls("lasso"), calls("lasso_min"), calls("simple")))
 cat("\nNested CV in Beat AML (", n_repeats, " x ", n_outer, "-fold):\n", sep = "")
 print(cv_summary, row.names = FALSE, digits = 3)
 write.csv(cv_auc, "results/classifier_cv_auc_by_repeat.csv", row.names = FALSE)
+write.csv(cv_summary, "results/classifier_cv_summary.csv", row.names = FALSE)
 write.csv(fits, "results/classifier_cv_fits.csv", row.names = FALSE)
 write.csv(oof, "results/classifier_cv_predictions.csv", row.names = FALSE)
 
@@ -245,10 +255,14 @@ model_tab$direction <- ifelse(is.na(model_tab$gene_id), NA,
                               ifelse(model_tab$coef > 0, "higher in NPM1-mut", "lower in NPM1-mut"))
 model_tab$deseq2_rank <- de$rank[match(model_tab$gene_id, de$gene_id)]
 model_tab$cv_pct_of_fits <- sel_freq$pct_of_fits[match(model_tab$symbol, sel_freq$symbol)]
+# Order in which genes enter the LASSO path as the penalty is relaxed
+# (1 = the single most useful gene on its own)
+first_in <- apply(as.matrix(final$glmnet.fit$beta) != 0, 1, function(z) if (any(z)) which(z)[1] else NA)
+model_tab$entry_order <- rank(first_in[model_tab$gene_id], ties.method = "min", na.last = "keep")
 model_tab <- model_tab[c(1, 1 + order(-abs(model_tab$per_sd[-1]))), ]
 cat("\nFinal LASSO model:", length(kept), "genes (lambda.1se =",
     signif(final$lambda.1se, 3), ")\n")
-print(model_tab[, c("symbol", "coef", "per_sd", "direction", "deseq2_rank", "cv_pct_of_fits")],
+print(model_tab[, c("symbol", "coef", "per_sd", "direction", "deseq2_rank", "cv_pct_of_fits", "entry_order")],
       row.names = FALSE, digits = 3)
 
 # HOXA9 + CD34 on all 276
@@ -293,5 +307,186 @@ write.csv(model_tab, "results/classifier_final_model.csv", row.names = FALSE)
 saveRDS(list(geo_ref = geo_ref, dispersion_function = dispersionFunction(dds_b),
              genes = colnames(X)), "data/classifier_vst_reference.rds")
 cat("\nLocked:", locked_file, "and data/classifier_vst_reference.rds\n")
+
+# ---- 4. One test in TCGA-LAML ------------------------------------------------------
+# Only the locked files are used from here on: results/classifier_locked_model.csv
+# and data/classifier_vst_reference.rds.
+#
+# Putting TCGA on Beat AML's scale, in two steps:
+#   (a) Beat AML's own VST. TCGA size factors are median-of-ratios against Beat
+#       AML's per-gene geometric means, and the VST uses Beat AML's dispersion
+#       trend, so a given normalized count maps to the same VST value as it would
+#       in Beat AML. A VST refitted on TCGA would be a slightly different ruler.
+#   (b) Per-gene rescaling. The two cohorts were counted with different pipelines
+#       and annotations (Ensembl 75 / GRCh37 vs STAR, GENCODE v36 / GRCh38), so a
+#       gene can sit at a different level, or spread, for purely technical
+#       reasons. For each model gene, TCGA's values are shifted and stretched so
+#       their mean and SD across the 111 TCGA samples equal Beat AML's. This uses
+#       no NPM1 labels. It assumes the two cohorts have a similar mix of samples
+#       (36% NPM1-mutated in Beat AML, 28% in TCGA), which is a mild cost.
+# (b) was chosen before TCGA was looked at. "(a) only" is reported as well, to
+# show what happens without it.
+
+ref    <- readRDS("data/classifier_vst_reference.rds")
+locked <- read.csv(locked_file)
+pt <- read.csv("results/tcga_cohort.csv") %>% filter(main_cohort)
+if (nrow(pt) != 111) stop("Expected 111 TCGA main-cohort patients; re-run 08_tcga_replication.R")
+yt <- as.integer(pt$NPM1 == "mut")
+cat("\nTCGA-LAML main cohort:", length(yt), "samples,", sum(yt), "NPM1-mutated\n")
+
+keep_t <- !grepl("_PAR_Y$", tc$genes$gene_id)
+cnt_t <- tc$counts[keep_t, pt$aliquot]
+rownames(cnt_t) <- sub("\\..*$", "", tc$genes$gene_id[keep_t])
+cnt_t <- cnt_t[ref$genes, ]
+storage.mode(cnt_t) <- "integer"
+dds_t <- DESeqDataSetFromMatrix(cnt_t, colData = data.frame(row.names = colnames(cnt_t),
+                                                           x = seq_len(ncol(cnt_t))),
+                                design = ~ 1)
+dds_t <- estimateSizeFactors(dds_t, geoMeans = ref$geo_ref)
+dispersionFunction(dds_t) <- ref$dispersion_function
+Xt <- t(assay(varianceStabilizingTransformation(dds_t, blind = FALSE)))
+cat("TCGA size factors (vs Beat AML reference): median", round(median(sizeFactors(dds_t)), 2),
+    ", range", paste(round(range(sizeFactors(dds_t)), 2), collapse = " to "), "\n")
+
+align <- function(Xn, tab) {
+  g <- tab$gene_id[!is.na(tab$gene_id)]
+  Z <- scale(Xn[, g, drop = FALSE])
+  sweep(sweep(Z, 2, tab$beat_sd[match(g, tab$gene_id)], "*"), 2,
+        tab$beat_mean[match(g, tab$gene_id)], "+")
+}
+apply_locked <- function(tab, Xn) {
+  g <- tab$gene_id[!is.na(tab$gene_id)]
+  eta <- tab$coef[is.na(tab$gene_id)] + as.numeric(Xn[, g, drop = FALSE] %*% tab$coef[match(g, tab$gene_id)])
+  plogis(eta)
+}
+
+tcga_pred <- list(); tcga_rows <- list(); tcga_roc <- list()
+for (m in c("lasso", "hoxa9_cd34")) {
+  tab <- locked[locked$model == m, ]
+  for (v in c("rescaled", "VST only")) {
+    Xn <- if (v == "rescaled") align(Xt, tab) else Xt
+    p <- apply_locked(tab, Xn)
+    r <- roc(yt, p, levels = c(0, 1), direction = "<", quiet = TRUE)
+    ci <- ci.auc(r, method = "delong")
+    call <- p >= 0.5
+    tcga_rows[[length(tcga_rows) + 1]] <- data.frame(
+      model = m, scaling = v, auc = as.numeric(auc(r)), auc_lo = ci[1], auc_hi = ci[3],
+      sensitivity = mean(call[yt == 1]), specificity = mean(!call[yt == 0]),
+      accuracy = mean(call == (yt == 1)), mean_predicted = mean(p), observed = mean(yt),
+      wt_called_mut = sum(call & yt == 0), mut_called_wt = sum(!call & yt == 1))
+    tcga_pred[[length(tcga_pred) + 1]] <- data.frame(model = m, scaling = v, aliquot = pt$aliquot,
+                                                     patient = pt$patient, NPM1 = pt$NPM1, p = p)
+    tcga_roc[[paste(m, v)]] <- r
+  }
+}
+tcga_res <- bind_rows(tcga_rows)
+cat("\nLocked models in TCGA-LAML (threshold 0.5 for the calls):\n")
+print(tcga_res, row.names = FALSE, digits = 3)
+write.csv(tcga_res, "results/classifier_tcga_performance.csv", row.names = FALSE)
+write.csv(bind_rows(tcga_pred), "results/classifier_tcga_predictions.csv", row.names = FALSE)
+
+# Paired DeLong test, same 111 patients: LASSO vs HOXA9 + CD34 (rescaled)
+dl <- roc.test(tcga_roc[["lasso rescaled"]], tcga_roc[["hoxa9_cd34 rescaled"]],
+               method = "delong", paired = TRUE)
+cat("LASSO vs HOXA9 + CD34 in TCGA, paired DeLong p =", signif(dl$p.value, 3), "\n")
+
+# How far apart are the cohorts before rescaling? Per model gene: TCGA mean and
+# SD (Beat AML's VST) against Beat AML's, and the shift that adds up in the
+# linear predictor.
+lt <- locked[locked$model == "lasso" & !is.na(locked$gene_id), ]
+shift_tab <- data.frame(symbol = lt$symbol, coef = lt$coef,
+                        beat_mean = lt$beat_mean, tcga_mean = colMeans(Xt[, lt$gene_id, drop = FALSE]),
+                        beat_sd = lt$beat_sd, tcga_sd = apply(Xt[, lt$gene_id, drop = FALSE], 2, sd))
+shift_tab$mean_shift <- shift_tab$tcga_mean - shift_tab$beat_mean
+shift_tab$sd_ratio   <- shift_tab$tcga_sd / shift_tab$beat_sd
+shift_tab$logit_shift <- shift_tab$coef * shift_tab$mean_shift
+cat("\nModel genes, TCGA vs Beat AML before rescaling (sum of logit shifts =",
+    round(sum(shift_tab$logit_shift), 2), "):\n")
+print(shift_tab[, c("symbol", "mean_shift", "sd_ratio", "logit_shift")], row.names = FALSE, digits = 3)
+write.csv(shift_tab, "results/classifier_tcga_scale_shift.csv", row.names = FALSE)
+
+# Apparent AUC: each final model scored on the same 276 samples it was fitted
+# on. Shown only to make the point that this number is optimistic.
+apparent <- c(auc_of(y, as.numeric(predict(final, X, s = "lambda.1se", type = "response"))),
+              auc_of(y, pred_simple(final_simple, X)))
+comparison <- data.frame(
+  model = c("LASSO", "HOXA9 + CD34"),
+  genes = c(sum(!is.na(lt$gene_id)), 2),
+  beat_training_auc = apparent,
+  beat_cv_auc_mean = c(cv_summary$auc_mean[1], cv_summary$auc_mean[3]),
+  beat_cv_auc_min = c(cv_summary$auc_min[1], cv_summary$auc_min[3]),
+  beat_cv_auc_max = c(cv_summary$auc_max[1], cv_summary$auc_max[3]),
+  tcga_auc = tcga_res$auc[tcga_res$scaling == "rescaled"],
+  tcga_auc_lo = tcga_res$auc_lo[tcga_res$scaling == "rescaled"],
+  tcga_auc_hi = tcga_res$auc_hi[tcga_res$scaling == "rescaled"],
+  tcga_accuracy = tcga_res$accuracy[tcga_res$scaling == "rescaled"],
+  tcga_delong_p_vs_other = signif(dl$p.value, 3))
+write.csv(comparison, "results/classifier_comparison.csv", row.names = FALSE)
+
+# ---- 5. Figure: ROC curves ---------------------------------------------------------
+# Beat AML: one thin curve per CV repeat (out-of-fold predictions, so each is an
+# honest estimate; the spread shows how much the fold split matters).
+# TCGA: one curve per locked model (rescaled).
+
+roc_df <- function(r) {
+  data.frame(fpr = 1 - r$specificities, tpr = r$sensitivities) %>% arrange(fpr, tpr)
+}
+fmt <- function(x) sprintf("%.3f", x)
+lab <- c(
+  beat_lasso  = sprintf("Beat AML, nested CV: LASSO (%d genes), AUC %s (repeats %s to %s)",
+                        length(kept), fmt(cv_summary$auc_mean[1]), fmt(cv_summary$auc_min[1]),
+                        fmt(cv_summary$auc_max[1])),
+  beat_simple = sprintf("Beat AML, CV: HOXA9 + CD34, AUC %s (repeats %s to %s)",
+                        fmt(cv_summary$auc_mean[3]), fmt(cv_summary$auc_min[3]), fmt(cv_summary$auc_max[3])),
+  tcga_lasso  = sprintf("TCGA-LAML, locked: LASSO, AUC %s (95%% CI %s to %s)",
+                        fmt(comparison$tcga_auc[1]), fmt(comparison$tcga_auc_lo[1]), fmt(comparison$tcga_auc_hi[1])),
+  tcga_simple = sprintf("TCGA-LAML, locked: HOXA9 + CD34, AUC %s (95%% CI %s to %s)",
+                        fmt(comparison$tcga_auc[2]), fmt(comparison$tcga_auc_lo[2]), fmt(comparison$tcga_auc_hi[2])))
+
+beat_curves <- bind_rows(lapply(seq_len(n_repeats), function(rr) {
+  d <- oof[oof$repeat_id == rr, ]
+  bind_rows(
+    cbind(roc_df(roc(d$y, d$lasso, levels = c(0, 1), direction = "<", quiet = TRUE)),
+          curve = "beat_lasso", grp = paste0("bl", rr)),
+    cbind(roc_df(roc(d$y, d$simple, levels = c(0, 1), direction = "<", quiet = TRUE)),
+          curve = "beat_simple", grp = paste0("bs", rr)))
+}))
+tcga_curves <- bind_rows(
+  cbind(roc_df(tcga_roc[["lasso rescaled"]]), curve = "tcga_lasso", grp = "tl"),
+  cbind(roc_df(tcga_roc[["hoxa9_cd34 rescaled"]]), curve = "tcga_simple", grp = "ts"))
+curves <- bind_rows(beat_curves, tcga_curves) %>%
+  mutate(curve = factor(curve, levels = names(lab)))
+
+cols <- c(beat_lasso = cohort_cols[["Beat AML"]], beat_simple = cohort_cols[["Beat AML"]],
+          tcga_lasso = cohort_cols[["TCGA-LAML"]], tcga_simple = cohort_cols[["TCGA-LAML"]])
+ltys <- c(beat_lasso = "solid", beat_simple = "22", tcga_lasso = "solid", tcga_simple = "22")
+# A: the whole ROC space. B: the top-left corner, where all four curves sit.
+roc_panel <- function(xmax, ymin, title) {
+  ggplot(curves, aes(fpr, tpr, group = grp, colour = curve, linetype = curve)) +
+    geom_abline(slope = 1, intercept = 0, colour = "grey80", linewidth = 0.4) +
+    geom_path(data = filter(curves, grepl("^beat", curve)), linewidth = 0.35, alpha = 0.55) +
+    geom_path(data = filter(curves, grepl("^tcga", curve)), linewidth = 0.9) +
+    scale_colour_manual(values = cols, labels = lab, name = NULL) +
+    scale_linetype_manual(values = ltys, labels = lab, name = NULL) +
+    coord_cartesian(xlim = c(0, xmax), ylim = c(ymin, 1), expand = FALSE) +
+    labs(title = title, x = "False positive rate (1 - specificity)",
+         y = "True positive rate (sensitivity)") +
+    theme_bw(base_size = 11) +
+    theme(aspect.ratio = 1, panel.grid.minor = element_blank(),
+          plot.title = element_text(size = 11, face = "bold"))
+}
+p <- (roc_panel(1, 0, "A. Full ROC curves") +
+        roc_panel(0.3, 0.7, "B. Zoom: false positive rate 0 to 0.3, sensitivity 0.7 to 1")) +
+  plot_layout(guides = "collect") +
+  plot_annotation(
+    title = "Predicting NPM1 status from expression",
+    subtitle = sprintf("Beat AML: %d x %d-fold nested CV, thin lines = one per repeat, n = 276. TCGA-LAML: models locked in Beat AML, tested once, n = 111.",
+                       n_repeats, n_outer),
+    theme = theme(plot.subtitle = element_text(size = 9, colour = "grey30"))) &
+  guides(colour = guide_legend(ncol = 2, override.aes = list(linewidth = 0.9, alpha = 1))) &
+  theme(legend.position = "bottom", legend.text = element_text(size = 8.5),
+        legend.key.width = unit(1.6, "lines"), legend.key.height = unit(0.9, "lines"))
+ggsave("figures/13_classifier_roc.png", p, width = 10, height = 6, dpi = 300)
+cat("Saved figures/13_classifier_roc.png\n")
 
 writeLines(capture.output(sessionInfo()), "results/sessionInfo_13_classifier.txt")

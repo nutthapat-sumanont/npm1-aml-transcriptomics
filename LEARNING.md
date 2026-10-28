@@ -18,6 +18,7 @@ Each session has one number, used in this log, CLAUDE.md and the script headers.
 | 10 | 2026-10-27 | FTO vs IFEX9 (TCGA coverage) | `11_fto_locus.R` | #9 |
 | 11 | 2026-10-27 | Project web page (GitHub Pages) | `12_build_site.R` | #10 |
 | 12 | 2026-10-27 | Final session: README results, clean run, renv, TCGA in the gene lookup | `run_all.R`, `12_build_site.R`, `setup/renv_snapshot.R` | #11 |
+| 13 | 2026-10-28 | Optional: NPM1 classifier (LASSO, nested CV, locked test in TCGA) | `13_classifier.R` | PR_PLACEHOLDER |
 
 Three early commit messages carry the wrong number. They were already pushed, so they were left as they are rather than rewriting history:
 - `bb97e57` says "Session 6" but belongs to Session 7 (TCGA).
@@ -58,8 +59,11 @@ One row per finding, with the number to remember and the figure that shows it (a
 | 9 | Survival of the NEK10/FTO/USP44 group is inconclusive | HR 1.19 (0.64 to 2.21), adjusted for age and FLT3-ITD; 25% power for HR 1.5 | `10_km_nek10_fto_usp44.png` |
 | 10 | The "FTO" rise is IFEX9, a transcript starting in FTO intron 8 | IFEX9 exon 1 mean coverage 238 vs 4; exon 9 about 12-fold up; exons 1-8 not higher; IFEX9 junction reads 61 to 434 in all 6 high samples | `11_fto_coverage.png` |
 | 11, 12 | Project web page with a gene lookup (Beat AML and TCGA side by side) | 19,654 genes; 17,681 with a TCGA result; `docs/` 8.4 MB | none (`docs/`) |
+| 13 | A LASSO model predicts NPM1 status from expression | 33 genes; nested CV AUC 0.985 (10 repeats, 0.984 to 0.987); 5 genes already 0.976 | `13_classifier_roc.png` |
+| 13 | The locked model holds up in TCGA-LAML | AUC 0.996 (95% CI 0.989 to 1.000); 108 of 111 called correctly | `13_classifier_roc.png` |
+| 13 | HOXA9 + CD34 alone: good, but worse | CV AUC 0.950; TCGA 0.966 (0.934 to 0.997), 103 of 111; paired DeLong p = 0.046 | `13_classifier_roc.png` |
 
-## Candidate limitations and next steps (updated in Session 12, all sessions)
+## Candidate limitations and next steps (updated in Session 12, all sessions; Session 13 added)
 
 This replaces the Session 5 list as the one to use for the README's Limitations and Next steps.
 
@@ -120,6 +124,14 @@ This replaces the Session 5 list as the one to use for the README's Limitations 
 - The pipeline downloads from GitHub, GDC, cBioPortal, recount3 and Ensembl; if any of them changes or goes offline, a rerun can fail or differ.
 - The gene lookup shows quartiles only (no per-sample values); its KMT2A-rearranged box is for comparison and isn't in any model; "not tested in TCGA" covers both "no matching ID" and "too few reads".
 
+*NPM1 classifier (Session 13)*
+- NPM1 status has one of the strongest expression signatures in AML, so a high AUC is expected; the classifier shows the signal is easy to read and travels between cohorts, not new biology, and it doesn't replace the DNA test.
+- The 33 genes are one good panel among many: LASSO keeps one gene from a correlated group (HOXA9 and MEIS1 aren't in it), and only 3 genes were picked in all 50 outer fits.
+- TCGA is small (31 NPM1-mutated), so its AUC has a wide-ish interval (0.989 to 1.000) and one patient moves accuracy by 0.9 points.
+- The TCGA rescaling uses the mean and SD of the whole TCGA cohort, so it needs a batch of samples (it can't score one new patient on its own) and assumes a similar case mix (28% vs 36% NPM1-mutated).
+- The Beat AML VST and gene filter were fitted on all 276 samples before cross-validation (no labels used); the 0.5 cut-off for calls isn't tuned for any purpose.
+- 9 of the 33 genes are lncRNAs, antisense genes or pseudogenes with 2014 Ensembl names, harder to interpret and partly renamed since.
+
 **Candidate next steps**
 - Test published menin-inhibitor response signatures (genes that fall after revumenib or VTP-50469) against our NPM1 and subgroup rankings; the gene lists have to come from papers. Or use a dataset with menin-inhibitor response (cell-line screens or newer patient cohorts).
 - Test "TET2, IDH1 or IDH2 in the high group" in a third cohort (for example Leucegene) as a stated hypothesis.
@@ -134,6 +146,7 @@ This replaces the Session 5 list as the one to use for the README's Limitations 
 - Check why CD34 is lower in the primitive-like group than in the committed-like group, against Mer et al.
 - Look into the cilium terms (leading-edge genes, literature).
 - A full `renv::restore()` on a fresh machine, to prove the lockfile end to end.
+- Classifier: test the locked model in a third cohort (for example Leucegene) and outside de novo AML at diagnosis; build a single-sample version (gene pairs or ranks) that needs no cohort-level rescaling.
 - Switch on GitHub Pages, and write the README and overview placeholders (Summary, Background, Question, Interpretation, Limitations, Next steps, AI use).
 
 ## Session 1 (2026-10-26): setup, download, first look at the cohort
@@ -1147,3 +1160,78 @@ Done in a fresh clone of this branch with no `data/`, and with every generated f
 
 **GitHub username change (2026-10-27, after Session 12)**
 - The GitHub account was renamed from Beckyzaza to nutthapat-sumanont, so the name matches the author line. GitHub redirects the old repository URLs (web and git), but not the old profile page or Pages sites, so every link in `docs/` and `CLAUDE.md` now uses the new name. The project site will be at https://nutthapat-sumanont.github.io/npm1-aml-transcriptomics/ once the repo is public and Pages is on.
+
+## Session 13 (2026-10-28, optional): can a small gene panel predict NPM1 status? (`scripts/13_classifier.R`)
+
+**Headline.** Yes, and it holds up in a second cohort. A LASSO logistic regression on Beat AML expression keeps 33 genes and has a nested cross-validated ROC AUC of 0.985. Locked and tested once in TCGA-LAML, it scores AUC 0.996 (95% CI 0.989 to 1.000) and calls 108 of 111 patients correctly. HOXA9 + CD34 alone get most of the way (CV AUC 0.950, TCGA 0.966) but are clearly worse (TCGA paired DeLong p = 0.046; 8 wrong calls vs 3). Five genes already reach a CV AUC of 0.976, and the curve flattens at about 10.
+
+**What we did, step by step**
+1. **Expression.** The 276 main-cohort samples, the same low-count rule as `04_deseq2.R` (>= 10 reads in >= 100 samples, 19,398 genes). Kept only genes with an Ensembl match in TCGA (18,693), so the locked model could be applied there, and removed the 25 male-specific chrY genes and XIST, for the same reason as before enrichment (sex is unbalanced, 64% vs 41% female). **18,668 candidate genes.** One blind VST (it never sees NPM1 labels), done step by step so its two learned parts, the size-factor reference and the dispersion trend, could be saved and reused on TCGA.
+2. **Nested cross-validation.** Outer loop: 5 folds, stratified by NPM1, repeated 10 times with different splits (50 outer fits). Inner loop: inside each outer training set, `cv.glmnet` with 10 stratified folds picks the penalty, lambda.1se (the sparsest model within one standard error of the best cross-validated deviance). The model then predicts the outer test fold it has never seen. glmnet standardizes each gene within the training set, so the test fold doesn't affect the scaling either. Also recorded: lambda.min, models capped at 1, 2, 3, 5, 10 or 20 genes, and how often each gene was picked.
+3. **Final model and lock.** The same recipe on all 276 samples (seed 2026), plus a plain logistic regression on HOXA9 + CD34. Both written to `results/classifier_locked_model.csv` (coefficients plus each gene's Beat AML mean and SD), the VST parts to `data/classifier_vst_reference.rds`, then **committed and pushed (`35d98a2`) before any TCGA expression was read**.
+4. **One test in TCGA-LAML** (111 main-cohort patients, 31 NPM1-mutated; cohort from Session 7), with the scaling set out below.
+5. **Figure:** `figures/13_classifier_roc.png`, cross-validated ROC curves in Beat AML (one thin line per repeat) and the locked-model ROC in TCGA, both models, with a zoom on the top-left corner.
+
+**How TCGA was put on Beat AML's scale (fixed before looking at TCGA)**
+- *Step (a), Beat AML's own VST.* TCGA size factors are median-of-ratios against Beat AML's per-gene geometric means (median 1.03, range 0.59 to 1.58), and the VST uses Beat AML's dispersion trend. A given normalized count therefore becomes exactly the VST value it would have in Beat AML. (Checked on toy data: with the trend and size factors fixed, each sample's VST depends only on that sample.) Refitting a VST on TCGA would give a slightly different ruler.
+- *Step (b), per-gene rescaling.* Beat AML and TCGA were counted with different pipelines and annotations (Ensembl 75 on GRCh37 vs STAR with GENCODE v36 on GRCh38), so a gene can sit at a different level for purely technical reasons. For each model gene, TCGA's values were shifted and stretched so their mean and SD across the 111 TCGA samples match Beat AML's. No labels are used.
+- *Why it matters.* A logistic model adds up weight x expression and compares the total with a cut-off. If a gene runs 1 unit higher in TCGA for technical reasons, every TCGA sample gets pushed the same way. The ranking of samples (and so the AUC) barely changes, but the calls at the cut-off do. Before rescaling, the model genes were shifted by 0.03 to 2.75 VST units (median 0.23) and their SDs were 0.59x to 1.28x Beat AML's.
+
+| Model in TCGA | Scaling | AUC (95% CI) | Sensitivity | Specificity | Correct |
+|---|---|---|---|---|---|
+| LASSO, 33 genes | rescaled (main) | **0.996 (0.989 to 1.000)** | 30 of 31 | 78 of 80 | **108 of 111 (97.3%)** |
+| LASSO, 33 genes | VST only | 0.994 (0.986 to 1.000) | 30 of 31 | 78 of 80 | 108 of 111 |
+| HOXA9 + CD34 | rescaled (main) | **0.966 (0.934 to 0.997)** | 29 of 31 | 74 of 80 | **103 of 111 (92.8%)** |
+| HOXA9 + CD34 | VST only | 0.966 (0.934 to 0.997) | 23 of 31 | 76 of 80 | 99 of 111 |
+
+  For the LASSO model the per-gene shifts happen to cancel out (together they move the log-odds by -0.07), so rescaling changes nothing. For HOXA9 + CD34 they don't: CD34 runs 0.96 units higher in TCGA (mostly technical; TCGA's smaller share of NPM1-mutated patients explains only a little of it), which pushes NPM1-mutated samples towards "wild-type", and sensitivity drops from 29 to 23 of 31. Same AUC, very different calls. That's the case rescaling is for. Calls use a probability of 0.5, not tuned.
+
+**Key numbers**
+
+*Nested CV in Beat AML* (AUC from each repeat's out-of-fold predictions; mean, with the range over 10 repeats; calls at 0.5, averaged over repeats):
+
+| Model | CV AUC | Genes per fit | Sensitivity | Specificity | Accuracy | AUC on its own training data |
+|---|---|---|---|---|---|---|
+| LASSO, lambda.1se (main) | **0.985** (0.984 to 0.987) | median 29 (20 to 42) | 95.9% | 98.5% | 97.6% | 0.9998 |
+| LASSO, lambda.min | 0.987 (0.983 to 0.989) | median 47 (36 to 59) | 96.3% | 98.5% | 97.7% | not computed |
+| HOXA9 + CD34 | **0.950** (0.948 to 0.952) | 2 | 82.7% | 92.5% | 88.9% | 0.954 |
+
+*How many genes does it need?* (LASSO path capped at k genes, nested CV)
+
+| At most | 1 | 2 | 3 | 5 | 10 | 20 |
+|---|---|---|---|---|---|---|
+| CV AUC | 0.922 | 0.966 | 0.971 | 0.976 | 0.983 | 0.984 |
+
+  A LASSO-chosen pair (0.966) already beats the hand-picked HOXA9 + CD34 (0.950). Most of the gain is in the first 5 genes; after 10 it's flat.
+
+*The final model* (`results/classifier_final_model.csv`): **33 genes**, 14 higher and 19 lower in NPM1-mutated AML; 24 protein-coding, 9 lncRNA, antisense or pseudogene. Largest weights (log-odds per Beat AML SD): HOXB-AS3 +0.63, NPTX1 +0.57, WNT7B +0.57, MIR503HG -0.53, HIPK2 +0.32, BAALC -0.30, AC004540.4 +0.19, PBX3 +0.16, CCDC74A +0.15, RP11-578F21.12 -0.14, CD34 -0.12, MLLT3 -0.12. The first genes to enter as the penalty is relaxed: WNT7B, CD34, HOXB-AS3, PBX3, MIR503HG.
+- 21 of the 33 are significant in the Session 3 DESeq2 model and 8 are in its top 50, but 7 rank below 1,000 (HIPK2 1,246; FNBP1L 7,026). LASSO picks genes that add information the others don't carry, not simply the most significant ones.
+- HOXA9 and MEIS1 aren't in the model. They're strongly correlated with HOXB-AS3, PBX3 and each other, and LASSO tends to keep one gene from a correlated group.
+- *Stability:* 142 different genes were picked at least once across the 50 outer fits. HIPK2, MIR503HG and WNT7B were picked every time, and 21 genes in at least half (`results/classifier_cv_selection_frequency.csv`).
+- *Sex genes:* with the 25 chrY genes and XIST offered too (a check only), the final model picks none of them.
+
+*TCGA errors:* LASSO calls TCGA-AB-2851 and TCGA-AB-2873 NPM1-mutated, the same two wild-type patients that scored NPM1-like on the Session 7 signature score, and misses one mutated patient (TCGA-AB-2992). HOXA9 + CD34 also calls those two mutated, plus four more wild-type patients, and misses two mutated ones (TCGA-AB-2839, 2871).
+
+**What I should understand**
+- **Overfitting.** With 18,668 genes and 276 patients there are far more knobs than examples, so a flexible model can learn the noise in this particular set of patients along with the real signal. It then looks better on the data it was fitted on than on new data. Here that shows directly: the 33-gene model scores AUC 0.9998 on its own training data but 0.985 on patients it hasn't seen. The two-gene model has almost no room to overfit (0.954 vs 0.950). The LASSO penalty fights overfitting by forcing most weights to exactly zero; cross-validation measures how much is left.
+- **Why nested.** Choosing lambda is also fitting: we try many values and keep the best one. If the same folds both choose lambda and report the AUC, the winner's score is flattered by luck. Nested CV keeps a separate outer test fold that plays no part in either the weights or the lambda, so the outer AUC is an honest estimate of what the whole recipe (gene filter, penalty choice, fit) does on new patients from the same source. Repeating the split 10 times shows the estimate barely depends on which patients land in which fold (0.984 to 0.987).
+- **Why the TCGA number is the one that counts.** Cross-validation is honest only about new patients *from Beat AML*: same hospitals, same lab, same pipeline, same annotation. A real test asks whether the model works somewhere else, where none of that is shared. Choices made while looking at Beat AML (the filters, the lambda rule, rerunning the script) can also leak a little optimism into the CV number, however careful we are. TCGA was never touched until the model was locked and pushed, and it was tested once. So 0.996 is the result to quote, with its confidence interval.
+- **Why TCGA scoring higher than CV isn't a warning sign.** With 31 NPM1-mutated patients, one or two samples move the AUC a lot (95% CI 0.989 to 1.000), so 0.985 and 0.996 aren't really different. TCGA is a single centre, and Session 7 already suggested its data are less noisy than Beat AML's multi-centre data. What matters is that performance didn't drop.
+- **Why expression predicts NPM1 so well.** The NPM1 expression signature is one of the strongest in AML (Session 3, 1,019 genes; Session 7, AUC 0.99 for a 96-gene score). So a high AUC is expected. The panel confirms that the signal is easy to read and travels between cohorts. It isn't new biology, and it isn't a substitute for the DNA test, which is cheap and definitive.
+- **What "the panel" means.** There are many near-equivalent panels, because many genes carry the same information. The 33 genes are one good choice. Reading meaning into a single gene's weight (why NPTX1 and not MEIS1?) is risky; the stable core (WNT7B, MIR503HG, HIPK2, PBX3, HOXB-AS3, BAALC, CD34, MLLT3) is the safer thing to describe.
+
+**Open questions**
+1. The scientific choices below were made without stopping to ask (see Deviations). Do you approve them, or should any change? Rerunning takes about 4 minutes, but any change would mean the TCGA test is no longer a first look.
+2. TCGA-AB-2851 and 2873 again look NPM1-mutated, now from a second, independent method. A missed NPM1 mutation, or NPM1-like AML without it? And TCGA-AB-2992 (NPM1-mutated, called wild-type): an unusual mutation type, low VAF, or a subclone?
+3. A single-sample version that doesn't need a whole cohort for rescaling (for example gene pairs or rank-based scores).
+4. A third cohort (for example Leucegene), and samples outside de novo AML at diagnosis (secondary AML, relapse).
+
+**Deviations**
+- *Scientific choices made without asking first* (CLAUDE.md asks me to stop before thresholds). The prompt set the method (LASSO, nested CV, test once on TCGA), so I went ahead and list the rest here for approval: main cohort only (276); candidate genes = the `04_deseq2.R` low-count rule, an Ensembl match in TCGA, no male-specific chrY genes or XIST; lambda.1se rather than lambda.min (the aim was a small panel; lambda.min is reported too); 10 x 5-fold outer and 10-fold inner CV; binomial deviance for choosing lambda; probability 0.5 for calls; per-gene mean and SD rescaling for TCGA.
+- *The VST and the gene filter were fitted once on all 276 samples*, not inside each outer fold. Neither uses NPM1 labels, so no answer leaks into the CV; it is a small departure from refitting everything inside each fold.
+- *The TCGA test.* The model was locked and pushed (`35d98a2`) before TCGA expression was read; TCGA was then scored once. The script was rerun three times afterwards (figure layout and a zoom panel, CV calls and gene entry order, the training AUC). Each rerun reproduced `results/classifier_locked_model.csv` byte for byte, so the TCGA numbers never changed. The "VST only" comparison was written into the script before the first TCGA run.
+- *Extra outputs not asked for:* lambda.min, the capped-size models, selection frequency, the sex-gene check, the training AUC, the per-gene scale shifts (`results/classifier_tcga_scale_shift.csv`), per-patient predictions for CV and TCGA.
+- *Figure:* two panels (full curves and a zoom on the top-left corner) because all four curves sit in the corner; still one figure. Brackets are the range over CV repeats for Beat AML and the DeLong 95% CI for TCGA.
+- *`run_all.R` runs 13 before 12*, out of number order, because `12_build_site.R` copies its figure into `docs/figures/`. Rebuilding the site changed only the build date in `docs/data/genes.json`.
+- *`data/` rebuilt:* `01_download.R`, then `08_tcga_replication.R`, which needed five runs because GDC dropped single files (two count files, one mutation file) on four of them; each run kept the files already checked. Every table and figure 08 rewrote was byte for byte identical to the committed ones; its sessionInfo file differed only in load order and was left as committed.
+- *Packages:* glmnet 5.1 from r2u, added to `setup/cloud_setup.sh` and `setup/renv_snapshot.R`; `renv.lock` now lists 131 packages (glmnet plus foreach, iterators and shape; nothing else changed). BiocManager and BiocVersion were installed from r2u so renv could write the lockfile, as in Session 12.
