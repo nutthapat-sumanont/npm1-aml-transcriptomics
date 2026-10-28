@@ -22,7 +22,7 @@ pkgs <- c(
   # CRAN
   "msigdbr", "data.table", "dplyr", "tidyr", "readxl", "jsonlite", "httr",
   "ggplot2", "ggrepel", "pheatmap", "patchwork", "scales", "matrixStats",
-  "pROC", "survival",
+  "pROC", "survival", "glmnet",
   # the tools that restore the rest
   "renv", "BiocManager"
 )
