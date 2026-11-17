@@ -6,15 +6,25 @@ A learning and portfolio project: differential expression between NPM1-mutated a
 
 ## Summary
 
-*To write: three to five sentences on the question, the cohort, the main result and what it means.*
+This project asks which genes differ between acute myeloid leukaemia (AML) with and without an NPM1 mutation, and how that connects to menin inhibitors. In 276 patients with de novo AML at diagnosis from Beat AML 2.0 (100 NPM1-mutated, 176 wild-type), 1,019 genes differ: the HOX program (HOXA9, HOXA10, the HOXB cluster, MEIS1, PBX3) is up, and stem and progenitor genes such as CD34 and BAALC are down. The signature holds after adjusting for FLT3-ITD and for cell maturity, reproduces the published Verhaak NPM1 gene sets, and separates NPM1-mutated from wild-type AML in an independent cohort, TCGA-LAML (ROC AUC 0.992). NPM1-mutated and KMT2A-rearranged AML, the two groups menin inhibitors are aimed at, sit at the same high level of HOXA9 and MEIS1 in both cohorts. Inside NPM1-mutated AML, a known primitive-like subgroup (37 of 100) responds very differently to venetoclax ex vivo, which is a reminder that NPM1-mutated AML is not one uniform disease.
 
 ## Background
 
-*To write: NPM1 mutations in AML, the HOX/MEIS1 program, and why menin inhibitors target it.*
+NPM1 is the most commonly mutated gene in adult AML, found in roughly a third of cases. The mutation moves the NPM1 protein out of the nucleolus and into the cytoplasm, and NPM1-mutated AML is classed as its own disease type, with a better prognosis when FLT3-ITD is absent (Döhner et al. 2022). It also has its own gene expression profile (Verhaak et al. 2005). The best-known part of that profile is high expression of the HOXA and HOXB genes and their partner MEIS1, usually with low CD34.
+
+In NPM1-mutated AML, as in AML with a KMT2A (MLL) rearrangement, the HOX genes and MEIS1 are kept switched on by a protein complex that includes KMT2A and menin. Menin inhibitors block the contact between menin and KMT2A, which turns this program down. Two are now approved in the US for relapsed or refractory NPM1-mutated AML: revumenib in October 2025 and ziftomenib in November 2025. That makes the HOX/MEIS1 program in NPM1-mutated AML a drug target, not just a marker, and is the reason this project looks at it closely.
 
 ## Question and hypothesis
 
-*To write: the question this project asks and what we expected to see.*
+**Question.** What does an NPM1 mutation do to gene expression in AML at diagnosis, and does that picture fit the idea that NPM1-mutated AML depends on menin?
+
+**What I expected, before running the analysis:**
+
+1. The HOX program (HOXA9, HOXA10, the HOXB cluster, MEIS1, PBX3) higher and CD34 lower in NPM1-mutated AML. These were set as positive controls: if they failed, the plan was to stop and look for a bug before going further.
+2. The published Verhaak NPM1 gene sets enriched in the same direction.
+3. NPM1-mutated and KMT2A-rearranged AML at the same high level of HOXA9 and MEIS1, since both depend on menin.
+
+The later steps asked how robust and how uniform that signature is: does it survive adjustment for FLT3-ITD and cell maturity, does it replicate in another cohort, is it the same across NPM1-mutated AML, and does it say anything about drug response or survival?
 
 ## Data
 
@@ -163,15 +173,34 @@ Can a small set of genes tell NPM1-mutated from wild-type AML, and does it work 
 
 ## Interpretation
 
-*To write: what the results mean for NPM1 biology and menin inhibitors.*
+**The main signature is the known NPM1 signature, and it is solid.** It reproduces Verhaak et al.'s 2005 gene sets, survives adjustment for FLT3-ITD and for cell maturity, and replicates in TCGA-LAML with a different centre, pipeline and genome build. None of this is a new discovery. Its value is that the whole pipeline checks out end to end on open data.
+
+**For menin inhibitors, three results point the same way.** First, NPM1-mutated and KMT2A-rearranged AML reach the same HOXA9 and MEIS1 levels in both cohorts, which fits a shared menin-dependent mechanism. Second, the HOX program is up in both NPM1 subgroups, primitive-like and committed-like, so on expression grounds it belongs to NPM1-mutated AML as a whole rather than to one subset. Third, cell maturity barely changes the HOX genes (HOXA9 keeps 105% of its fold change after adjustment), so their high level is not just a side effect of how mature the cells are. All of this is indirect: the project measures the program menin inhibitors target, not response to a menin inhibitor, because none is in the Beat AML drug panel.
+
+**NPM1-mutated AML is not uniform.** About a third of cases (37 of 100 in Beat AML, 6 of 31 in TCGA) form the primitive-like subgroup described by Mer et al. (2021). It is marked by NEK10, USP44 and IFEX9, a transcript that starts inside FTO, rather than FTO itself (Arza-Apalategi et al. 2023). Ex vivo, this subgroup is far more sensitive to venetoclax (median AUC 65 vs 204), partly but not only because it is less monocytic. Whether the two subgroups also respond differently to menin inhibitors is open, and is probably the most useful next question for treatment.
 
 ## Limitations
 
-*To write: see the candidate list in LEARNING.md.*
+The full list, session by session, is in [LEARNING.md](LEARNING.md). The main ones:
+
+- **Observational, bulk data.** These are associations, not cause and effect, and each sample mixes leukaemic and normal cells. Blast percentage isn't in any model.
+- **One clinical setting.** The cohort is de novo AML at diagnosis. Results may not carry over to secondary, therapy-related or relapsed AML, which is where menin inhibitors are used today.
+- **No menin inhibitor data.** The menin link rests on expression of the target program, not on drug response.
+- **Cell maturity is partly caused by NPM1.** Adjusting for it can remove real NPM1 biology (CD34 is the clearest case), and the cell-type scores come from the same RNA-seq, so a gene inside a score is partly adjusted for itself.
+- **The subgroup was found and tested in the same data.** The split is modest (bimodality coefficient 0.73) and its definition changed once, from four genes to three. Beat AML's gene-level counts can't separate FTO from IFEX9; that result rests on 6 high samples in TCGA.
+- **TCGA-LAML is small.** 31 NPM1-mutated and 80 wild-type patients from one centre, and the primitive-like group is smaller there (19% vs 37%).
+- **Drugs and survival are exploratory.** A 3-day, single-drug ex vivo AUC isn't clinical response. Treatment varied too much to model in survival, and the subgroup comparison has only about 25% power to detect a hazard ratio of 1.5.
+- **Choices and imbalances.** Thresholds (padj < 0.05, |log2FC| > 1, the low-count filter, the k-means splits) are choices. Sex is unbalanced (64% vs 41% female), so chrY genes and XIST were removed before enrichment.
 
 ## Next steps
 
-*To write: see the candidate list in LEARNING.md.*
+- Test published menin-inhibitor response signatures (genes that fall after revumenib or VTP-50469) against the NPM1 and subgroup rankings, or analyse a dataset with menin-inhibitor response.
+- Ask whether the primitive-like and committed-like subgroups respond differently to menin inhibitors.
+- Check the subgroup findings in a third cohort (for example Leucegene), including the TET2/IDH link, and the venetoclax difference in independent ex vivo drug data.
+- Define the subgroup by IFEX9 directly in TCGA, and look at DNA methylation at IFEX9 exon 1.
+- Identify the HOXA9-high "other AML" cases (KMT2A-PTD, NUP98 fusions or other lesions).
+- Separate non-leukaemic cells with deconvolution, and adjust for blast percentage or NPM1 variant allele frequency.
+- Test the locked 33-gene classifier in a third cohort, and build a single-sample version that needs no cohort-level rescaling.
 
 ## How to reproduce
 
@@ -207,7 +236,7 @@ Can a small set of genes tell NPM1-mutated from wild-type AML, and does it work 
 
 ## AI use
 
-*To write: how AI tools were used in this project.*
+I did this project with Claude (Anthropic), working in Claude Code cloud sessions, as a way to learn RNA-seq analysis on real data. Claude wrote and ran the R scripts, made the figures, and drafted the captions and the written sections of this README, including this one. I set the question and the plan. The repository's `CLAUDE.md` told Claude to stop and ask before every scientific decision (cohort filters, the DESeq2 design, thresholds, the subgroup definition), and I approved or changed each one; the decisions are listed there. Every session ends with an entry in [LEARNING.md](LEARNING.md) explaining what was done, the key numbers and what to understand, which is how I worked through the methods. The choices, and any errors, are mine to answer for.
 
 ## References
 
